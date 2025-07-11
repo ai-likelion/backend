@@ -1,44 +1,30 @@
 package com.likelion.ai_teacher_a.domain.user.entity;
 
-import com.likelion.ai_teacher_a.domain.image.entity.Image;
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import lombok.*;
 
 @Entity
-@Table(name = "users")  // ← 이름 변경
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue
     private Long userId;
 
-    private String name;
-
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     private String email;
+
+    @Column(nullable = false)
+    private String name;
 
     private String password;
 
-    private String phone;
-
-    private LocalDateTime createdAt;
-
-    @OneToOne
-    @JoinColumn(name = "profile_image_id")
-    private Image profileImage;
-
-    @PrePersist
-    public void prePersist() {
-        this.createdAt = LocalDateTime.now();
-    }
+    private String provider; // "KAKAO" 또는 "LOCAL"
 }
-
