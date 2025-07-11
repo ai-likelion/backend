@@ -6,8 +6,11 @@ import com.likelion.ai_teacher_a.domain.user.dto.UserRequestDto;
 import com.likelion.ai_teacher_a.domain.user.dto.UserResponseDto;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
+import com.likelion.ai_teacher_a.global.auth.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -15,6 +18,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final ImageRepository imageRepository;
+    private final JwtUtil jwtUtil;
 
     public UserResponseDto createUser(UserRequestDto dto) {
         User user = new User();
@@ -57,6 +61,25 @@ public class UserService {
 
         user.setProfileImage(image);
         userRepository.save(user);
+    }
+
+    public String loginWithKakao(String kakaoId, String email, String nickname) {
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+
+        User user;
+        if (optionalUser.isPresent()) {
+            user = optionalUser.get();
+        } else {
+            user = User.builder()
+                    .email(email)
+                    .name(nickname)
+                    .password("kakao_" + kakaoId)  // 또는 UUID.randomUUID().toString()
+                    .provider("KAKAO")
+                    .build();
+            userRepository.save(user);
+        }
+
+        return jwtUtil.createToken(user.getEmail());
     }
 }
 
