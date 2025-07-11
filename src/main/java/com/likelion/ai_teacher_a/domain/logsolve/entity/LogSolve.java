@@ -2,16 +2,14 @@ package com.likelion.ai_teacher_a.domain.logsolve.entity;
 
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "log_solve")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@Setter
 @Builder
 public class LogSolve {
     @Id
