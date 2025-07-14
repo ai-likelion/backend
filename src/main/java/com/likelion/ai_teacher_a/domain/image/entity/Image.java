@@ -1,9 +1,7 @@
 package com.likelion.ai_teacher_a.domain.image.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +10,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor  // <- 이거도 필요합니다!
+@Builder              // ✅ 이게 꼭 필요합니다!
 public class Image {
 
     @Id
@@ -32,7 +32,6 @@ public class Image {
     private ImageType type; // PROFILE, ETC
 
     @Lob
-    @Column(columnDefinition = "LONGBLOB")
     private byte[] data;
 
     @PrePersist
@@ -40,4 +39,3 @@ public class Image {
         this.uploadedAt = LocalDateTime.now();
     }
 }
-
