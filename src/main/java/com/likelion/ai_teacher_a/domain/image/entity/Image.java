@@ -24,6 +24,10 @@ public class Image {
 
     private LocalDateTime uploadedAt;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "image_id")
+    private Image profileImage;
+
     @Enumerated(EnumType.STRING)
     private ImageType type; // PROFILE, ETC
 

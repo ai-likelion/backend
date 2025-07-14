@@ -1,15 +1,18 @@
 package com.likelion.ai_teacher_a.domain.user.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.likelion.ai_teacher_a.domain.user.dto.UserRequestDto;
 import com.likelion.ai_teacher_a.domain.user.dto.UserResponseDto;
 import com.likelion.ai_teacher_a.domain.user.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 
@@ -19,6 +22,14 @@ import java.io.IOException;
 public class UserController {
 
     private final UserService userService;
+    private final ObjectMapper objectMapper = new ObjectMapper(); // ✅ 수동 등록 또는 Bean 주입도 가능
+    private final RestTemplate restTemplate = new RestTemplate(); // ✅ 수동 등록 또는 Bean 주입도 가능
+
+    @Value("${kakao.client-id}") // ✅ application.yml 또는 .properties에서 주입
+    private String clientId;
+
+    @Value("${kakao.redirect-uri}")
+    private String redirectUriFromApp;
 
     @PostMapping("/signup")
     public ResponseEntity<UserResponseDto> create(@RequestBody UserRequestDto dto) {
@@ -63,7 +74,6 @@ public class UserController {
 
     @GetMapping("/oauth/kakao/callback")
     public ResponseEntity<String> kakaoCallback(@RequestParam("code") String code) throws IOException {
-        // 1. 토큰 요청
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
@@ -81,10 +91,8 @@ public class UserController {
                 String.class
         );
 
-        // 2. 액세스 토큰 추출
         String accessToken = objectMapper.readTree(tokenResponse.getBody()).get("access_token").asText();
 
-        // 3. 사용자 정보 요청
         HttpHeaders userInfoHeaders = new HttpHeaders();
         userInfoHeaders.setBearerAuth(accessToken);
         HttpEntity<?> userInfoRequest = new HttpEntity<>(userInfoHeaders);
@@ -101,21 +109,18 @@ public class UserController {
         String email = userInfo.get("kakao_account").get("email").asText();
         String nickname = userInfo.get("properties").get("nickname").asText();
 
-        // 4. 우리 DB에 사용자 등록 or 로그인 처리
-        userService.loginWithKakao(kakaoId, email, nickname);
+        String jwt = userService.loginWithKakao(kakaoId, email, nickname);
 
-        return ResponseEntity.ok("로그인 성공");
+        // Redirect가 아닌 API 테스트용으로 토큰 반환
+        return ResponseEntity.ok(jwt);
     }
 
     @GetMapping("/login")
     public void redirectToKakaoLogin(HttpServletResponse response) throws IOException {
         String redirectUrl = "https://kauth.kakao.com/oauth/authorize"
                 + "?client_id=" + clientId
-                + "&redirect_uri=" + redirectUri
+                + "&redirect_uri=" + redirectUriFromApp
                 + "&response_type=code";
         response.sendRedirect(redirectUrl);
     }
-
-
 }
-

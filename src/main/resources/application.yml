@@ -20,17 +20,19 @@ spring:
   application:
     name: ai-teacher-a
   datasource:
-    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/ai_math_teacher_a?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:1234}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:postgresql://localhost:5432/ai_math_teacher_a
+    username: postgres
+    password: 1234
+    driver-class-name: org.postgresql.Driver
   jpa:
-    database-platform: org.hibernate.dialect.MySQL8Dialect
+    database-platform: org.hibernate.dialect.PostgreSQL8Dialect
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        format_sql: false
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+      show-sql: true
+
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:nnnnnn}

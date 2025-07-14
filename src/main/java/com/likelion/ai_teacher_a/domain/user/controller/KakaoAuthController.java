@@ -32,9 +32,7 @@ public class KakaoAuthController {
     @Value("${frontend.redirect-uri}")
     private String frontendRedirectUri; // e.g., http://localhost:3000/login/success
 
-    /**
-     * 카카오 로그인 URL로 리디렉트
-     */
+    /* 카카오 로그인 URL로 리디렉트 */
     @GetMapping("/login")
     public void kakaoLogin(HttpServletResponse response) throws IOException {
         String redirectUri = "https://kauth.kakao.com/oauth/authorize"
@@ -44,9 +42,7 @@ public class KakaoAuthController {
         response.sendRedirect(redirectUri);
     }
 
-    /**
-     * 카카오 로그인 콜백 - JWT 발급 및 프론트엔드 리디렉션
-     */
+    /* 카카오 로그인 콜백 - JWT 발급 및 프론트엔드 리디렉션 */
     @GetMapping("/callback")
     public void kakaoCallback(@RequestParam("code") String code, HttpServletResponse response) throws IOException {
         // 1. 토큰 요청
