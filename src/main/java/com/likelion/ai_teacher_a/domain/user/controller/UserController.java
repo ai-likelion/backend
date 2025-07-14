@@ -22,10 +22,10 @@ import java.io.IOException;
 public class UserController {
 
     private final UserService userService;
-    private final ObjectMapper objectMapper = new ObjectMapper(); // ✅ 수동 등록 또는 Bean 주입도 가능
-    private final RestTemplate restTemplate = new RestTemplate(); // ✅ 수동 등록 또는 Bean 주입도 가능
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${kakao.client-id}") // ✅ application.yml 또는 .properties에서 주입
+    @Value("${kakao.client-id}")
     private String clientId;
 
     @Value("${kakao.redirect-uri}")
