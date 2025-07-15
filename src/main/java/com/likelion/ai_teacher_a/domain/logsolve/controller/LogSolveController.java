@@ -1,5 +1,6 @@
 package com.likelion.ai_teacher_a.domain.logsolve.controller;
 
+import com.likelion.ai_teacher_a.domain.logsolve.dto.TotalLogCountDto;
 import com.likelion.ai_teacher_a.domain.logsolve.service.LogSolveService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,7 +20,7 @@ import java.util.Map;
 @Tag(name = "Math AI 문제해설", description = "AI 이미지 문제 해설 및 로그 관리 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/math")
+@RequestMapping("/api/public/math")
 public class LogSolveController {
 
     private final LogSolveService logSolveService;
@@ -71,6 +72,17 @@ public class LogSolveController {
             @Parameter(description = "사용자의 추가 질문") @RequestParam("question") String question
     ) {
         return logSolveService.executeFollowUp(logSolveId, question);
+    }
+
+
+    @Operation(
+            summary = "전체 문제해설 로그 수 조회",
+            description = "DB에 저장된 전체 LogSolve(문제해설 로그)의 총 개수를 반환합니다."
+    )
+    @GetMapping("/logs-total")
+    public ResponseEntity<TotalLogCountDto> getTotalLogCount() {
+        TotalLogCountDto total = logSolveService.getTotalLogCount();
+        return ResponseEntity.ok(total);
     }
 
 
