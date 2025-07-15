@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.likelion.ai_teacher_a.domain.user.dto.UserRequestDto;
 import com.likelion.ai_teacher_a.domain.user.dto.UserResponseDto;
 import com.likelion.ai_teacher_a.domain.user.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +18,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 
+@Tag(name = "User Controller", description = "사용자 관련 API")
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -31,16 +34,19 @@ public class UserController {
     @Value("${kakao.redirect-uri}")
     private String redirectUriFromApp;
 
+    @Operation(summary = "신규 회원 생성")
     @PostMapping("/signup")
     public ResponseEntity<UserResponseDto> create(@RequestBody UserRequestDto dto) {
         return ResponseEntity.ok(userService.createUser(dto));
     }
 
+    @Operation(summary = "사용자 id 조회")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDto> get(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUser(id));
     }
 
+    @Operation(summary = "사용자 정보 수정")
     @PatchMapping("/{id}")
     public ResponseEntity<UserResponseDto> update(
             @PathVariable Long id,
@@ -49,6 +55,7 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(id, dto));
     }
 
+    @Operation(summary = "사용자 프로필 이미지")
     @PatchMapping("/{userId}/profile-image")
     public ResponseEntity<Void> setProfileImage(
             @PathVariable Long userId,
@@ -57,12 +64,14 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "사용자 삭제")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "카카오 로그인")
     @GetMapping("/oauth/kakao/login")
     public void kakaoLogin(HttpServletResponse response) throws IOException {
         String redirectUri = "https://kauth.kakao.com/oauth/authorize"
@@ -72,6 +81,7 @@ public class UserController {
         response.sendRedirect(redirectUri);
     }
 
+    @Operation(summary = "카카오 콜백")
     @GetMapping("/oauth/kakao/callback")
     public ResponseEntity<String> kakaoCallback(@RequestParam("code") String code) throws IOException {
         HttpHeaders headers = new HttpHeaders();
@@ -115,6 +125,7 @@ public class UserController {
         return ResponseEntity.ok(jwt);
     }
 
+    @Operation(summary = "카카오 로그인 완료")
     @GetMapping("/login")
     public void redirectToKakaoLogin(HttpServletResponse response) throws IOException {
         String redirectUrl = "https://kauth.kakao.com/oauth/authorize"

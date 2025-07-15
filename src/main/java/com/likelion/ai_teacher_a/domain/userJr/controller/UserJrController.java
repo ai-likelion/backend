@@ -3,12 +3,15 @@ package com.likelion.ai_teacher_a.domain.userJr.controller;
 import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrRequestDto;
 import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrResponseDto;
 import com.likelion.ai_teacher_a.domain.userJr.service.UserJrService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Tag(name = "User-Jr", description = "사용자 자녀 관련 API")
 @RestController
 @RequestMapping("/api/user-jrs")
 @RequiredArgsConstructor
@@ -16,27 +19,32 @@ public class UserJrController {
 
     private final UserJrService userJrService;
 
+    @Operation(summary = "사용자 자녀 등록")
     @PostMapping
     public ResponseEntity<UserJrResponseDto> create(@RequestBody UserJrRequestDto dto) {
         return ResponseEntity.ok(userJrService.create(dto));
     }
 
+    @Operation(summary = "사용자 자녀 정보 조회")
     @GetMapping("/{id}")
     public ResponseEntity<UserJrResponseDto> get(@PathVariable Long id) {
         return ResponseEntity.ok(userJrService.findById(id));
     }
 
+    @Operation(summary = "사용자 자녀의 학부모 조회")
     @GetMapping("/parent/{parentId}")
     public ResponseEntity<List<UserJrResponseDto>> listByParent(@PathVariable Long parentId) {
         return ResponseEntity.ok(userJrService.findByParent(parentId));
     }
 
+    @Operation(summary = "사용자 자녀 정보 삭제")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         userJrService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "사용자 자녀 프로필 이미지")
     @PatchMapping("/{userJrId}/profile-image")
     public ResponseEntity<Void> setProfileImage(
             @PathVariable Long userJrId,
