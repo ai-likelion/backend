@@ -10,8 +10,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor  // <- 이거도 필요합니다!
-@Builder              // ✅ 이게 꼭 필요합니다!
+@AllArgsConstructor
+@Builder
 public class Image {
 
     @Id
@@ -23,6 +23,10 @@ public class Image {
     private String fileName;
 
     private LocalDateTime uploadedAt;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "image_id")
+    private Image profileImage;
 
     @Enumerated(EnumType.STRING)
     private ImageType type; // PROFILE, ETC
