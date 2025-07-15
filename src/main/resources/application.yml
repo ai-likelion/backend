@@ -1,13 +1,16 @@
 server:
-  port: ${BACKEND_WEB_PORT:8080}
+  port: ${PORT:8080}
 
 spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:nnnnnn}
   security:
     oauth2:
       client:
         registration:
           kakao:
-            client-id: a587e58dfef395c68fe47e99f5844b5c
+            client-id: ${OAUTH_CLIENT_ID}
             redirect-uri: "http://localhost:8080/oauth/kakao/callback"
             authorization-grant-type: authorization_code
             client-name: Kakao
@@ -20,9 +23,9 @@ spring:
   application:
     name: ai-teacher-a
   datasource:
-    url: jdbc:postgresql://localhost:5432/ai_math_teacher_a
-    username: postgres
-    password: 1234
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ai_math_teacher_a}
+    username: ${DB_ID:postgres}
+    password: ${DB_PW:1234}
     driver-class-name: org.postgresql.Driver
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQL8Dialect
@@ -32,7 +35,12 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
       show-sql: true
+cloudflare:
+  r2:
+    endpoint-url: ${R2_URL}
+    region: ${R2_REGION}
+    credentials:
+      access-key-id: ${R2_ACCESS_ID}
+      secret-access-key: ${R2_ACCESS_KEY}
+    bucket: ${R2_BUCKET}
 
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY:nnnnnn}
