@@ -10,7 +10,7 @@ spring:
       client:
         registration:
           kakao:
-            client-id: ${OAUTH_CLIENT_ID}
+            client-id: ${OAUTH_CLIENT_ID:nnnnnn}
             redirect-uri: "http://localhost:8080/oauth/kakao/callback"
             authorization-grant-type: authorization_code
             client-name: Kakao
@@ -43,4 +43,5 @@ cloudflare:
       access-key-id: ${R2_ACCESS_ID}
       secret-access-key: ${R2_ACCESS_KEY}
     bucket: ${R2_BUCKET}
-
+frontend:
+  redirect-uri: http://localhost:3000/login/success

@@ -26,10 +26,10 @@ public class KakaoAuthController {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${kakao.client-id}")
+    @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
     private String clientId;
 
-    @Value("${kakao.redirect-uri}")
+    @Value("${spring.security.oauth2.client.registration.kakao.redirect-uri}")
     private String redirectUriFromApp;
 
     @Value("${frontend.redirect-uri}")

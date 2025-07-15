@@ -28,10 +28,10 @@ public class UserController {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${kakao.client-id}")
+    @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
     private String clientId;
 
-    @Value("${kakao.redirect-uri}")
+    @Value("${spring.security.oauth2.client.registration.kakao.redirect-uri}")
     private String redirectUriFromApp;
 
     @Operation(summary = "신규 회원 생성")
