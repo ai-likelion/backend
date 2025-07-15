@@ -14,7 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
 @RestController
-@RequestMapping("/api/images")
+@RequestMapping("/api/public/images") //TODO: 로그인 후 수정
 @RequiredArgsConstructor
 public class ImageController {
 
