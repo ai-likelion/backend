@@ -29,7 +29,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 	public OAuth2AuthenticationSuccessHandler(
 		JwtUtil jwtUtil,
 		UserRepository userRepository,
-		@Value("${frontend.redirect-uri}") String frontendRedirectUri
+		@Value("${frontend.login-success-uri}") String frontendRedirectUri
 	) {
 		this.jwtUtil = jwtUtil;
 		this.userRepository = userRepository;
