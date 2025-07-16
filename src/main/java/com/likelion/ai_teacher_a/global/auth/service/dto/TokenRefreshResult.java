@@ -15,6 +15,6 @@ public record TokenRefreshResult(
 	@JsonIgnore HttpStatus httpStatus,
 	String message,
 	String accessToken,
-	String expireDateTime,
+	long expireDateTime,
 	@JsonIgnore Cookie newCookie
 ){}

@@ -41,7 +41,7 @@
             })
             .then(data => {
                 document.getElementById('newAccessToken').textContent = data.accessToken;
-                document.getElementById('newExpiresIn').textContent = new Date(data.accessTokenExpiresIn).toLocaleString();
+                document.getElementById('newExpiresIn').textContent = new Date(data.expireDateTime).toLocaleString();
                 document.getElementById('status').textContent = '요청 성공';
             })
             .catch(error => {

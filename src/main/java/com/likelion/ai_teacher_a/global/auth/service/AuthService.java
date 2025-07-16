@@ -37,12 +37,12 @@ public class AuthService {
 
 		Cookie refreshTokenCookie = createNewCookie(newRefreshToken);
 
-		String expiresIn = getExpireDateTime();
+		long expires = getExpireDateTime();
 
-		return buildResponseForOK(newAccessToken, expiresIn, refreshTokenCookie);
+		return buildResponseForOK(newAccessToken, expires, refreshTokenCookie);
 	}
 
-	private TokenRefreshResult buildResponseForOK(String accessToken, String expireDateTime, Cookie cookie) {
+	private TokenRefreshResult buildResponseForOK(String accessToken, long expireDateTime, Cookie cookie) {
 		return TokenRefreshResult.builder()
 			.httpStatus(HttpStatus.OK)
 			.accessToken(accessToken)
@@ -51,8 +51,8 @@ public class AuthService {
 			.build();
 	}
 
-	private String getExpireDateTime() {
-		return String.valueOf(new Date().getTime() + jwtUtil.getAccessTokenExpirationTime());
+	private long getExpireDateTime() {
+		return new Date().getTime() + jwtUtil.getAccessTokenExpirationTime();
 	}
 
 	private void saveUserToken(User user, String newRefreshToken) {
