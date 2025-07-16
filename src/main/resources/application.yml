@@ -11,7 +11,7 @@ spring:
         registration:
           kakao:
             client-id: ${OAUTH_CLIENT_ID:nnnnnn}
-            redirect-uri: "http://localhost:8080/oauth/kakao/callback"
+            redirect-uri: ${REDIRECT_URI:http://localhost:8080/oauth/kakao/callback}
             authorization-grant-type: authorization_code
             client-name: Kakao
             scope: profile_nickname, account_email
@@ -35,14 +35,15 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
       show-sql: true
-cloudflare:
-  r2:
-    endpoint-url: ${R2_URL}
-    region: ${R2_REGION}
+cloud:
+  aws:
+    region:
+      static: ${S3_REGION}
     credentials:
-      access-key-id: ${R2_ACCESS_ID}
-      secret-access-key: ${R2_ACCESS_KEY}
-    bucket: ${R2_BUCKET}
+      access-key: ${S3_ACCESS_KEY}
+      secret-key: ${S3_SECRET_KEY}
+    s3:
+      bucket: ${S3_BUCKET}
 frontend:
   redirect-uri: http://localhost:3000/login/success
 

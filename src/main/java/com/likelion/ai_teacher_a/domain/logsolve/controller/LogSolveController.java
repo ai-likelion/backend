@@ -5,6 +5,7 @@ import com.likelion.ai_teacher_a.domain.logsolve.service.LogSolveService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.PermitAll;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -17,7 +18,7 @@ import java.util.Map;
 @Tag(name = "Math AI 문제해설", description = "AI 이미지 문제 해설 및 로그 관리 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/public/math")
+@RequestMapping("/api/math")
 public class LogSolveController {
 
     private final LogSolveService logSolveService;
