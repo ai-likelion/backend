@@ -1,68 +1,75 @@
 package com.likelion.ai_teacher_a.global.auth;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import org.springframework.security.core.userdetails.UserDetails;
+import java.security.Key;
+import java.util.Date;
+
 import org.springframework.stereotype.Component;
 
-import java.util.Date;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtUtil {
+	private final Key key;
+	private final long ACCESS_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60; // 1시간
+	private final long REFRESH_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60 * 24 * 7; // 7일
 
-    private final String SECRET_KEY = "secret_key";
-    private final long EXPIRATION_TIME = 1000 * 60 * 60 * 24;
+	public JwtUtil() {
+		this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+	}
 
-    public String createToken(String email) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + EXPIRATION_TIME);
-        return Jwts.builder()
-                .setSubject(email)
-                .setIssuedAt(new Date())
-                .claim("role", "ROLE_USER")  // ✅ 권한 추가
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(SignatureAlgorithm.HS512, SECRET_KEY)
-                .compact();
-    }
+	public long getAccessTokenExpirationTime() {
+		return ACCESS_TOKEN_EXPIRATION_TIME;
+	}
 
-    public String extractEmail(String token) {
-        try {
-            return Jwts.parser()
-                    .setSigningKey(SECRET_KEY)
-                    .parseClaimsJws(token)
-                    .getBody()
-                    .getSubject();
-        } catch (Exception e) {
-            return null;
-        }
-    }
+	public String createToken(Long userId) {
+		return Jwts.builder()
+			.setSubject(String.valueOf(userId))
+			.setIssuedAt(new Date())
+			.setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION_TIME))
+			.signWith(key)
+			.compact();
+	}
 
-    public boolean validateToken(String token, UserDetails userDetails) {
-        String email = extractEmail(token);
-        return (email != null && email.equals(userDetails.getUsername()) && !isTokenExpired(token));
-    }
+	public String createRefreshToken(Long userId) {
+		return Jwts.builder()
+			.setSubject(String.valueOf(userId))
+			.setIssuedAt(new Date())
+			.setExpiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRATION_TIME))
+			.signWith(key)
+			.compact();
+	}
 
-    private boolean isTokenExpired(String token) {
-        try {
-            Date expiration = Jwts.parser()
-                    .setSigningKey(SECRET_KEY)
-                    .parseClaimsJws(token)
-                    .getBody()
-                    .getExpiration();
-            return expiration.before(new Date());
-        } catch (Exception e) {
-            return true;
-        }
-    }
-    public String extractRole(String token) {
-        try {
-            return (String) Jwts.parser()
-                    .setSigningKey(SECRET_KEY)
-                    .parseClaimsJws(token)
-                    .getBody()
-                    .get("role");
-        } catch (Exception e) {
-            return null;
-        }
-    }
+	public String extractUserId(String token) {
+		return Jwts.parserBuilder()
+			.setSigningKey(key)
+			.build()
+			.parseClaimsJws(token)
+			.getBody()
+			.getSubject();
+	}
+
+	public boolean validateToken(String token, CustomUserDetails userDetails) {
+		Long userId = Long.parseLong(extractUserId(token));
+		return (userId.equals(userDetails.getId()) && !isTokenExpired(token));
+	}
+
+	public boolean validateRefreshToken(String token) {
+		try {
+			return !isTokenExpired(token);
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	private boolean isTokenExpired(String token) {
+		Date expiration = Jwts.parserBuilder()
+			.setSigningKey(key)
+			.build()
+			.parseClaimsJws(token)
+			.getBody()
+			.getExpiration();
+		return expiration.before(new Date());
+	}
 }
