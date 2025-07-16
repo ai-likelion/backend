@@ -54,24 +54,16 @@ public class JwtUtil {
 
 	public boolean validateToken(String token, CustomUserDetails userDetails) {
 		Long userId = extractUserId(token);
-		return (userId.equals(userDetails.getId()) && !isTokenExpired(token));
+		return (userId.equals(userDetails.getId()) && isValidateRefreshToken(token));
 	}
 
-	public boolean validateRefreshToken(String token) {
-		try {
-			return !isTokenExpired(token);
-		} catch (Exception e) {
-			return false;
-		}
-	}
-
-	private boolean isTokenExpired(String token) {
+	public boolean isValidateRefreshToken(String token) {
 		Date expiration = Jwts.parserBuilder()
 			.setSigningKey(key)
 			.build()
 			.parseClaimsJws(token)
 			.getBody()
 			.getExpiration();
-		return expiration.before(new Date());
+		return !expiration.before(new Date());
 	}
 }

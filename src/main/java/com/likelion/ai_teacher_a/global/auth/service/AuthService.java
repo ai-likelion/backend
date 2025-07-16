@@ -77,7 +77,7 @@ public class AuthService {
 	}
 
 	private boolean isInvalidToken(String refreshToken) {
-		return refreshToken == null || !jwtUtil.validateRefreshToken(refreshToken);
+		return refreshToken == null || !jwtUtil.isValidateRefreshToken(refreshToken);
 	}
 
 	private User getUser(Long userId) {
