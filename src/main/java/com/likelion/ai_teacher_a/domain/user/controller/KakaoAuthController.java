@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Tag(name = "Kakao Controller", description = "카카오 로그인 관련 API")
 @RestController
@@ -24,7 +26,7 @@ public class KakaoAuthController {
 
     private final UserService userService;
     private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
     private String clientId;
@@ -46,53 +48,61 @@ public class KakaoAuthController {
         response.sendRedirect(redirectUri);
     }
 
-    /* 카카오 로그인 콜백 - JWT 발급 및 프론트엔드 리디렉션 */
     @Operation(summary = "카카오 로그인 콜백")
     @GetMapping("/callback")
     public void kakaoCallback(@RequestParam("code") String code, HttpServletResponse response) throws IOException {
-        // 1. 토큰 요청
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        try {
+            // 1. 카카오 access_token 요청
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("grant_type", "authorization_code");
-        params.add("client_id", clientId);
-        params.add("redirect_uri", redirectUriFromApp);
-        params.add("code", code);
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("grant_type", "authorization_code");
+            params.add("client_id", clientId);
+            params.add("redirect_uri", redirectUriFromApp);
+            params.add("code", code);
 
-        HttpEntity<MultiValueMap<String, String>> tokenRequest = new HttpEntity<>(params, headers);
-        ResponseEntity<String> tokenResponse = restTemplate.postForEntity(
-                "https://kauth.kakao.com/oauth/token",
-                tokenRequest,
-                String.class
-        );
+            HttpEntity<MultiValueMap<String, String>> tokenRequest = new HttpEntity<>(params, headers);
+            ResponseEntity<String> tokenResponse = restTemplate.postForEntity(
+                    "https://kauth.kakao.com/oauth/token",
+                    tokenRequest,
+                    String.class
+            );
 
-        // 2. 액세스 토큰 추출
-        String accessToken = objectMapper.readTree(tokenResponse.getBody())
-                .get("access_token")
-                .asText();
+            String accessToken = objectMapper.readTree(tokenResponse.getBody())
+                    .get("access_token")
+                    .asText();
 
-        // 3. 사용자 정보 요청
-        HttpHeaders userInfoHeaders = new HttpHeaders();
-        userInfoHeaders.setBearerAuth(accessToken);
-        HttpEntity<?> userInfoRequest = new HttpEntity<>(userInfoHeaders);
+            // 2. 사용자 정보 요청
+            HttpHeaders userInfoHeaders = new HttpHeaders();
+            userInfoHeaders.setBearerAuth(accessToken);
+            HttpEntity<?> userInfoRequest = new HttpEntity<>(userInfoHeaders);
 
-        ResponseEntity<String> userInfoResponse = restTemplate.exchange(
-                "https://kapi.kakao.com/v2/user/me",
-                HttpMethod.GET,
-                userInfoRequest,
-                String.class
-        );
+            ResponseEntity<String> userInfoResponse = restTemplate.exchange(
+                    "https://kapi.kakao.com/v2/user/me",
+                    HttpMethod.GET,
+                    userInfoRequest,
+                    String.class
+            );
 
-        JsonNode userInfo = objectMapper.readTree(userInfoResponse.getBody());
-        String kakaoId = userInfo.get("id").asText();
-        String email = userInfo.get("kakao_account").get("email").asText();
-        String nickname = userInfo.get("properties").get("nickname").asText();
+            JsonNode userInfo = objectMapper.readTree(userInfoResponse.getBody());
+            String kakaoId = userInfo.get("id").asText();
+            JsonNode emailNode = userInfo.get("kakao_account").get("email");
+            String email = (emailNode != null && !emailNode.isNull()) ? emailNode.asText() : "no-email@kakao.com";
+            String nickname = userInfo.get("properties").get("nickname").asText();
 
-        // 4. 사용자 로그인 처리 및 JWT 발급
-        String jwt = userService.loginWithKakao(kakaoId, email, nickname);
+            // 3. JWT 생성
+            String jwt = userService.loginWithKakao(kakaoId, email, nickname);
 
-        // ✅ 5. 프론트엔드로 Redirect + JWT 전달 (URL에 토큰 포함)
-        response.sendRedirect(frontendRedirectUri + "?token=" + jwt);
+            // 4. 리디렉션
+            String encodedToken = URLEncoder.encode(jwt, StandardCharsets.UTF_8);
+            response.sendRedirect(frontendRedirectUri + "?token=" + encodedToken);
+
+        } catch (Exception e) {
+            e.printStackTrace(); // 콘솔에 전체 예외 로그 출력
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().write("카카오 로그인 중 오류 발생: " + e.getMessage());
+        }
     }
+
 }

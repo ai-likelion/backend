@@ -7,12 +7,17 @@ import com.likelion.ai_teacher_a.domain.user.dto.UserResponseDto;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
 import com.likelion.ai_teacher_a.global.auth.JwtUtil;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
+@Getter
+@Setter
 @RequiredArgsConstructor
 public class UserService {
 
@@ -64,22 +69,22 @@ public class UserService {
     }
 
     public String loginWithKakao(String kakaoId, String email, String nickname) {
-        Optional<User> optionalUser = userRepository.findByEmail(email);
+        List<User> users = userRepository.findAllByEmail(email);
 
         User user;
-        if (optionalUser.isPresent()) {
-            user = optionalUser.get();
-        } else {
+        if (users.isEmpty()) {
             user = User.builder()
+                    .kakaoId(kakaoId)
                     .email(email)
-                    .name(nickname)
-                    .password("kakao_" + kakaoId)  // 또는 UUID.randomUUID().toString()
-                    .provider("KAKAO")
+                    .name(nickname != null ? nickname : "카카오사용자")
                     .build();
             userRepository.save(user);
+        } else {
+            user = users.get(0);  // 중복이 있어도 첫 번째 유저 사용
         }
 
         return jwtUtil.createToken(user.getEmail());
     }
+
 }
 

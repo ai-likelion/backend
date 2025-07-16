@@ -32,6 +32,7 @@ public class User {
     private String password;
     private String provider; // "KAKAO" 또는 "LOCAL"
     private String phone;
+    private String kakaoId;
 
     @OneToOne
     private Image profileImage;
