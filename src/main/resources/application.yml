@@ -11,7 +11,7 @@ spring:
         registration:
           kakao:
             client-id: ${OAUTH_CLIENT_ID:nnnnnn}
-            redirect-uri: "http://localhost:8080/oauth/kakao/callback"
+            redirect-uri: ${REDIRECT_URI:http://localhost:8080/oauth/kakao/callback}
             authorization-grant-type: authorization_code
             client-name: Kakao
             scope: profile_nickname, account_email
