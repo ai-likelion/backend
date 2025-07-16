@@ -16,10 +16,14 @@ import com.likelion.ai_teacher_a.domain.logsolve.repository.LogSolveRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 
 import java.io.IOException;
 import java.net.URI;
@@ -292,31 +296,36 @@ public class LogSolveService {
 
 
     @Transactional(readOnly = true)
-    public Map<String, List<LogSolveSimpleResponseDto>> getAllSimpleLogs() {
-        List<LogSolveSimpleResponseDto> logs = logSolveRepository.findAll().stream().map(log -> {
-                    String imageUrl = log.getImage().getUrl();
-                    String problemTitle = "";
+    public Map<String, Object> getAllSimpleLogs(Pageable pageable) {
+        Page<LogSolve> page = logSolveRepository.findAll(pageable);
 
-                    try {
-                        JsonNode node = mapper.readTree(log.getResult());
-                        problemTitle = node.path("problem_title").asText();
-                    } catch (Exception e) {
-                        // JSON 파싱 실패 무시
-                    }
+        List<LogSolveSimpleResponseDto> logs = page.getContent().stream().map(log -> {
+            String imageUrl = log.getImage().getUrl();
+            String problemTitle = "";
 
-                    return new LogSolveSimpleResponseDto(
-                            log.getLogSolveId(),
-                            imageUrl,
-                            problemTitle,
-                            log.getImage().getUploadedAt()
-                    );
-                }).sorted(Comparator.comparing(LogSolveSimpleResponseDto::uploadedAt).reversed())
-                .toList();
+            try {
+                JsonNode node = mapper.readTree(log.getResult());
+                problemTitle = node.path("problem_title").asText();
+            } catch (Exception e) {
+                // JSON 파싱 실패 무시
+            }
 
-        Map<String, List<LogSolveSimpleResponseDto>> result = new HashMap<>();
-        result.put("logs", logs);
-        return result;
+            return new LogSolveSimpleResponseDto(
+                    log.getLogSolveId(),
+                    imageUrl,
+                    problemTitle,
+                    log.getImage().getUploadedAt()
+            );
+        }).toList();
+
+        return Map.of(
+                "logs", logs,
+                "totalElements", page.getTotalElements(),
+                "totalPages", page.getTotalPages(),
+                "currentPage", page.getNumber()
+        );
     }
+
 
 
 }
