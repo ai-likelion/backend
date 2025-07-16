@@ -14,10 +14,13 @@ public class JwtUtil {
     private final String SECRET_KEY = "secret_key";
     private final long EXPIRATION_TIME = 1000 * 60 * 60 * 24;
 
-    public String createToken(String email) {
+    public String createToken(String email, String role) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + EXPIRATION_TIME);
         return Jwts.builder()
                 .setSubject(email)
                 .setIssuedAt(new Date())
+                .claim("role", role)  // ✅ 권한 추가
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(SignatureAlgorithm.HS512, SECRET_KEY)
                 .compact();
@@ -44,4 +47,5 @@ public class JwtUtil {
                 .getExpiration();
         return expiration.before(new Date());
     }
+    
 }

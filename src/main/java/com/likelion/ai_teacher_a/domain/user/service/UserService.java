@@ -7,12 +7,16 @@ import com.likelion.ai_teacher_a.domain.user.dto.UserResponseDto;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
 import com.likelion.ai_teacher_a.global.auth.JwtUtil;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
+@Getter
+@Setter
 @RequiredArgsConstructor
 public class UserService {
 
@@ -25,7 +29,7 @@ public class UserService {
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
         user.setPassword(dto.getPassword()); // ⚠️ 실제 서비스에서는 암호화 필요
-        user.setPhone(dto.getPhone());
+//        user.setPhone(dto.getPhone());
 
         User saved = userRepository.save(user);
         return UserResponseDto.from(saved);
@@ -42,7 +46,7 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         user.setName(dto.getName());
-        user.setPhone(dto.getPhone());
+//        user.setPhone(dto.getPhone());
 
         return UserResponseDto.from(userRepository.save(user));
     }
@@ -59,7 +63,7 @@ public class UserService {
         Image image = imageRepository.findById(imageId)
                 .orElseThrow(() -> new RuntimeException("Image not found"));
 
-        user.setProfileImage(image);
+//        user.setProfileImage(image);
         userRepository.save(user);
     }
 
@@ -79,7 +83,7 @@ public class UserService {
             userRepository.save(user);
         }
 
-        return jwtUtil.createToken(user.getEmail());
+//        return jwtUtil.createToken(user.getEmail());
     }
 }
 
