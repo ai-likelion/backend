@@ -3,6 +3,8 @@ package com.likelion.ai_teacher_a.domain.user.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.likelion.ai_teacher_a.domain.user.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 
+@Tag(name = "Kakao Controller", description = "카카오 로그인 관련 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/oauth/kakao")
@@ -23,18 +26,17 @@ public class KakaoAuthController {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${kakao.client-id}")
+    @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
     private String clientId;
 
-    @Value("${kakao.redirect-uri}")
+    @Value("${spring.security.oauth2.client.registration.kakao.redirect-uri}")
     private String redirectUriFromApp;
 
     @Value("${frontend.redirect-uri}")
     private String frontendRedirectUri; // e.g., http://localhost:3000/login/success
 
-    /**
-     * 카카오 로그인 URL로 리디렉트
-     */
+    /* 카카오 로그인 URL로 리디렉트 */
+    @Operation(summary = "카카오 로그인 URL로 리다이렉트")
     @GetMapping("/login")
     public void kakaoLogin(HttpServletResponse response) throws IOException {
         String redirectUri = "https://kauth.kakao.com/oauth/authorize"
@@ -44,9 +46,8 @@ public class KakaoAuthController {
         response.sendRedirect(redirectUri);
     }
 
-    /**
-     * 카카오 로그인 콜백 - JWT 발급 및 프론트엔드 리디렉션
-     */
+    /* 카카오 로그인 콜백 - JWT 발급 및 프론트엔드 리디렉션 */
+    @Operation(summary = "카카오 로그인 콜백")
     @GetMapping("/callback")
     public void kakaoCallback(@RequestParam("code") String code, HttpServletResponse response) throws IOException {
         // 1. 토큰 요청

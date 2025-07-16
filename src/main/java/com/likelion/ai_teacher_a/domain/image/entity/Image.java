@@ -1,9 +1,7 @@
 package com.likelion.ai_teacher_a.domain.image.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +10,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Image {
 
     @Id
@@ -27,13 +27,11 @@ public class Image {
     @Enumerated(EnumType.STRING)
     private ImageType type; // PROFILE, ETC
 
-    @Lob
-    @Column(columnDefinition = "LONGBLOB")
-    private byte[] data;
+
+    private String url;
 
     @PrePersist
     public void onCreate() {
         this.uploadedAt = LocalDateTime.now();
     }
 }
-

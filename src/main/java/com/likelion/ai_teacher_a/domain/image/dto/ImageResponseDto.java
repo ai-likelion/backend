@@ -13,6 +13,7 @@ public class ImageResponseDto {
     private Long imageId;
     private String fileName;
     private Integer fileSize;
+    private String url;
     private LocalDateTime uploadedAt;
-}
 
+}
