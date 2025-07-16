@@ -35,15 +35,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
-cloudflare:
-  r2:
-    endpoint-url: ${R2_URL}
-    region: ${R2_REGION}
-    credentials:
-      access-key-id: ${R2_ACCESS_ID}
-      secret-access-key: ${R2_ACCESS_KEY}
-    bucket: ${R2_BUCKET}
-
 cloud:
   aws:
     region:
