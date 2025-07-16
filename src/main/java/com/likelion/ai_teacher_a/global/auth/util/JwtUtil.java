@@ -1,9 +1,11 @@
-package com.likelion.ai_teacher_a.global.auth;
+package com.likelion.ai_teacher_a.global.auth.util;
 
 import java.security.Key;
 import java.util.Date;
 
 import org.springframework.stereotype.Component;
+
+import com.likelion.ai_teacher_a.global.auth.CustomUserDetails;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;

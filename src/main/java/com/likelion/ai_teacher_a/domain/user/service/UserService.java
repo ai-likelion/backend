@@ -8,7 +8,7 @@ import com.likelion.ai_teacher_a.domain.user.dto.UserRequestDto;
 import com.likelion.ai_teacher_a.domain.user.dto.UserResponseDto;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
-import com.likelion.ai_teacher_a.global.auth.JwtUtil;
+import com.likelion.ai_teacher_a.global.auth.util.JwtUtil;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

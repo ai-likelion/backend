@@ -1,4 +1,4 @@
-package com.likelion.ai_teacher_a.global.auth;
+package com.likelion.ai_teacher_a.global.auth.filter;
 
 import java.io.IOException;
 
@@ -7,6 +7,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.likelion.ai_teacher_a.global.auth.CustomUserDetails;
+import com.likelion.ai_teacher_a.global.auth.util.JwtUtil;
+import com.likelion.ai_teacher_a.global.auth.service.CustomUserDetailsService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

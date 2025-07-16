@@ -1,4 +1,4 @@
-package com.likelion.ai_teacher_a.global.auth;
+package com.likelion.ai_teacher_a.global.auth.service;
 
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
+import com.likelion.ai_teacher_a.global.auth.CustomUserDetails;
 
 import lombok.RequiredArgsConstructor;
 

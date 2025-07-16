@@ -1,8 +1,8 @@
 package com.likelion.ai_teacher_a.global.config;
 
-import com.likelion.ai_teacher_a.global.auth.CustomOAuth2UserService;
-import com.likelion.ai_teacher_a.global.auth.JwtAuthenticationFilter;
-import com.likelion.ai_teacher_a.global.auth.OAuth2AuthenticationSuccessHandler;
+import com.likelion.ai_teacher_a.global.auth.service.CustomOAuth2UserService;
+import com.likelion.ai_teacher_a.global.auth.filter.JwtAuthenticationFilter;
+import com.likelion.ai_teacher_a.global.auth.handler.OAuth2AuthenticationSuccessHandler;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

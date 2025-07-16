@@ -1,4 +1,4 @@
-package com.likelion.ai_teacher_a.global.auth;
+package com.likelion.ai_teacher_a.global.auth.service;
 
 import java.util.Collections;
 import java.util.Map;

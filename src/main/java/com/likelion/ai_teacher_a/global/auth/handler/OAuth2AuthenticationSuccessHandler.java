@@ -1,4 +1,4 @@
-package com.likelion.ai_teacher_a.global.auth;
+package com.likelion.ai_teacher_a.global.auth.handler;
 
 import java.io.IOException;
 import java.util.Date;
@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
+import com.likelion.ai_teacher_a.global.auth.util.JwtUtil;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,7 +45,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 		Long kakaoId = (Long)attributes.get("id");
 
 		User user = userRepository.findById(kakaoId)
-			.orElseThrow(() -> new IllegalArgumentException("User not found with kakaoId: " + kakaoId));
+			.orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
 
 		String accessToken = jwtUtil.createToken(user.getId());
 		String refreshToken = jwtUtil.createRefreshToken(user.getId());

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
-import com.likelion.ai_teacher_a.global.auth.JwtUtil;
+import com.likelion.ai_teacher_a.global.auth.util.JwtUtil;
 import com.likelion.ai_teacher_a.global.auth.service.dto.TokenRefreshResult;
 
 import jakarta.servlet.http.Cookie;
