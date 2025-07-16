@@ -1,10 +1,5 @@
 package com.likelion.ai_teacher_a.global.config;
 
-import com.likelion.ai_teacher_a.global.auth.service.CustomOAuth2UserService;
-import com.likelion.ai_teacher_a.global.auth.filter.JwtAuthenticationFilter;
-import com.likelion.ai_teacher_a.global.auth.handler.OAuth2AuthenticationSuccessHandler;
-
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -14,31 +9,56 @@ import org.springframework.security.config.annotation.web.configurers.CsrfConfig
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.likelion.ai_teacher_a.global.auth.filter.JwtAuthenticationFilter;
+import com.likelion.ai_teacher_a.global.auth.handler.OAuth2AuthenticationSuccessHandler;
+import com.likelion.ai_teacher_a.global.auth.service.CustomOAuth2UserService;
+
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final CustomOAuth2UserService customOAuth2UserService;
+	private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
-            .csrf(CsrfConfigurer<HttpSecurity>::disable)
-            .cors(CorsConfigurer<HttpSecurity>::disable)
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/login.html", "/mypage.html", "/success.html", "/refresh_test.html", "/login/oauth2/code/kakao", "/oauth2/authorization/kakao", "/api/auth/refresh").permitAll()
-                .anyRequest().authenticated()
-            )
-            .oauth2Login(oauth2 -> oauth2
-                .userInfoEndpoint(userInfo -> userInfo
-                    .userService(customOAuth2UserService)
-                )
-                .successHandler(oAuth2AuthenticationSuccessHandler)
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .build();
-    }
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+		return http
+			.csrf(CsrfConfigurer<HttpSecurity>::disable)
+			.cors(CorsConfigurer<HttpSecurity>::disable)
+			.authorizeHttpRequests(auth -> auth
+				.requestMatchers(
+					"/",
+					"/login.html",
+					"/success.html",
+					"/refresh_test.html",
+					"/swagger-ui/**",
+					"/v3/api-docs/**",
+					"/login/oauth2/code/kakao",
+					"/oauth2/authorization/kakao",
+					"/api/**" //TODO: 추후 회원 완료 후 삭제 필요
+				).permitAll()
+				.anyRequest().authenticated()
+			)
+			.oauth2Login(oauth2 -> oauth2
+				.userInfoEndpoint(userInfo -> userInfo
+					.userService(customOAuth2UserService)
+				)
+				.successHandler(oAuth2AuthenticationSuccessHandler)
+			)
+			.exceptionHandling(exception -> exception
+				.authenticationEntryPoint((request, response, authException) -> {
+					response.sendError(HttpServletResponse.SC_UNAUTHORIZED); // 인증 실패 (401)
+				})
+				.accessDeniedHandler((request, response, accessDeniedException) -> {
+					response.sendError(HttpServletResponse.SC_FORBIDDEN); // 권한 부족 (403)
+				})
+			)
+			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+			.build();
+	}
 }
