@@ -67,24 +67,5 @@ public class UserService {
         user.setProfileImage(image);
         userRepository.save(user);
     }
-
-    public String loginWithKakao(String kakaoId, String email, String nickname) {
-        List<User> users = userRepository.findAllByEmail(email);
-
-        User user;
-        if (users.isEmpty()) {
-            user = User.builder()
-                    .kakaoId(kakaoId)
-                    .email(email)
-                    .name(nickname != null ? nickname : "카카오사용자")
-                    .build();
-            userRepository.save(user);
-        } else {
-            user = users.get(0);  // 중복이 있어도 첫 번째 유저 사용
-        }
-
-        return jwtUtil.createToken(user.getEmail());
-    }
-
 }
 

@@ -41,17 +41,19 @@ public class JwtUtil {
 			.compact();
 	}
 
-	public String extractUserId(String token) {
-		return Jwts.parserBuilder()
+	public Long extractUserId(String token) {
+		return Long.parseLong(
+			Jwts.parserBuilder()
 			.setSigningKey(key)
 			.build()
 			.parseClaimsJws(token)
 			.getBody()
-			.getSubject();
+			.getSubject()
+		);
 	}
 
 	public boolean validateToken(String token, CustomUserDetails userDetails) {
-		Long userId = Long.parseLong(extractUserId(token));
+		Long userId = extractUserId(token);
 		return (userId.equals(userDetails.getId()) && !isTokenExpired(token));
 	}
 
