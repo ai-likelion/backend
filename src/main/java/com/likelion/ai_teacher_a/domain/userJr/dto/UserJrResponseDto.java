@@ -20,7 +20,7 @@ public class UserJrResponseDto {
                 jr.getUserJrId(),
                 jr.getName(),
                 jr.getSchoolGrade(),
-                jr.getParent() != null ? jr.getParent().getUserId() : null,
+                jr.getParent() != null ? jr.getParent().getId() : null,
                 jr.getProfileImage() != null ? jr.getProfileImage().getImageId() : null
         );
     }

@@ -6,6 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface UserJrRepository extends JpaRepository<UserJr, Long> {
-    List<UserJr> findByParentUserId(Long parentId);
+    List<UserJr> findByParentId(Long parentId);
 }
 
