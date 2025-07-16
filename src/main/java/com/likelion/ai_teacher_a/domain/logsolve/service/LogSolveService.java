@@ -1,20 +1,21 @@
 package com.likelion.ai_teacher_a.domain.logsolve.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.likelion.ai_teacher_a.domain.image.dto.ImageResponseDto;
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
 import com.likelion.ai_teacher_a.domain.image.entity.ImageType;
 import com.likelion.ai_teacher_a.domain.image.repository.ImageRepository;
 import com.likelion.ai_teacher_a.domain.image.service.ImageService;
+import com.likelion.ai_teacher_a.domain.image.service.S3Uploader;
 import com.likelion.ai_teacher_a.domain.logsolve.dto.LogSolveResponseDto;
-import com.likelion.ai_teacher_a.domain.logsolve.dto.PagedLogResponseDto;
+import com.likelion.ai_teacher_a.domain.logsolve.dto.LogSolveSimpleResponseDto;
+import com.likelion.ai_teacher_a.domain.logsolve.dto.TotalLogCountDto;
 import com.likelion.ai_teacher_a.domain.logsolve.entity.LogSolve;
 import com.likelion.ai_teacher_a.domain.logsolve.repository.LogSolveRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +28,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 
 @Slf4j
@@ -44,6 +42,7 @@ public class LogSolveService {
     private final LogSolveRepository logSolveRepository;
     private final ImageService imageService;
     private final ImageRepository imageRepository;
+    private final S3Uploader s3Uploader;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -51,11 +50,10 @@ public class LogSolveService {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
-
     public Map<String, Object> executeMath(Long logSolveId) {
         try {
             LogSolve logSolve = getLogSolveById(logSolveId);
-            String base64Image = encodeImageToBase64(logSolve.getImage().getImageId());
+            String imageUrl = logSolve.getImage().getUrl();
 
             String prompt = """
                     Read the following math problem image accurately using OCR, and according to the ‘Our Kid Math Explanation Helper’ app’s parent explanation guide, output only a pure JSON object conforming to the JSON schema below. The math explanation and instructional method should be at a 6th grade elementary school level, including very detailed explanations in 4–6 steps. Since real-time web search for visual aids is not possible, present visual aid suggestions as search keywords and example URLs (placeholders). Please respond only in Korean.
@@ -68,22 +66,25 @@ public class LogSolveService {
                       "core_concept": "Core concept of the problem (e.g., 'divisors and multiples')",
                       "parent_explanation": "Concise guide sentence that a parent can use to explain to their child",
                       "explanation_steps": [
-                        "Step 1: …",
-                        "Step 2: …",
-                        "Step 3: …",
-                        "Step 4: …",
-                        "Step 5: …"
-                      ],
-                      "visual_aid": [
                         {
-                          "title": "Example visual aid title",
-                          "search_term": "Example search keyword",
-                          "example_url": "https://placeholder.example.com/your-image.png"
+                          "title": "Step 1: Introduce the triangle angle rule",
+                          "description": "Explain that the sum of the internal angles of any triangle is always 180 degrees."
                         },
                         {
-                          "title": "Another visual aid title",
-                          "search_term": "Another search keyword",
-                          "example_url": "https://placeholder.example.com/another-image.png"
+                          "title": "Step 2: Identify the known angle",
+                          "description": "Point out that one of the angles is already given as 55 degrees."
+                        },
+                        {
+                          "title": "Step 3: Calculate the remaining angle sum",
+                          "description": "Subtract the known angle (55°) from 180° to find the sum of the other two angles."
+                        },
+                        {
+                          "title": "Step 4: Show the result of the subtraction",
+                          "description": "180° - 55° = 125°, which is the combined measure of angles ㉠ and ㉡."
+                        },
+                        {
+                          "title": "Step 5: Summarize the method",
+                          "description": "Remind the student that this approach works for any triangle when two angles are known."
                         }
                       ],
                       "example_questions": [
@@ -92,7 +93,7 @@ public class LogSolveService {
                       ]
                     }
                     ```""";
-            Map<String, Object> payload = buildPayload(prompt, base64Image, 8192);
+            Map<String, Object> payload = buildPayload(prompt, imageUrl, 8192);
 
             String gptContent = sendGptRequest(payload);
             Map<String, Object> result = parseGptJson(gptContent);
@@ -120,18 +121,19 @@ public class LogSolveService {
     }
 
     public Long createLogAndReturnId(MultipartFile imageFile) throws IOException {
-        ImageResponseDto imageDto = imageService.upload(imageFile, ImageType.ETC);
+        ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC);
         Image image = imageRepository.findById(imageDto.getImageId()).orElseThrow(() -> new RuntimeException("이미지 없음"));
 
         return logSolveRepository.save(LogSolve.builder().image(image).result("처리 중").build()).getLogSolveId();
     }
 
+
     @Transactional(readOnly = true)
-    public PagedLogResponseDto getAllLogs(Pageable pageable) {
-        Page<LogSolve> logsPage = logSolveRepository.findAll(pageable);
-        List<LogSolveResponseDto> logs = logsPage.stream().map(this::convertLogToDto).toList();
-        return new PagedLogResponseDto(logs, logsPage.getTotalElements(), logsPage.getTotalPages(), logsPage.getNumber());
+    public TotalLogCountDto getTotalLogCount() {
+        long total = logSolveRepository.count();
+        return new TotalLogCountDto(total);
     }
+
 
     @Transactional(readOnly = true)
     public Map<String, Object> getLogDetail(Long logSolveId) {
@@ -144,22 +146,32 @@ public class LogSolveService {
         try {
             Map<String, Object> parsed = mapper.readValue(cleanJson(log.getResult()), Map.class);
             parsed.put("logSolveId", logSolveId);
+            parsed.put("image_url", log.getImage().getUrl());
             return parsed;
         } catch (Exception e) {
             throw new RuntimeException("상세 설명 JSON 파싱 실패: " + e.getMessage());
         }
     }
 
+    @Transactional
     public void deleteLogById(Long logSolveId) {
         LogSolve log = getLogSolveById(logSolveId);
-        logSolveRepository.delete(log);
+
+        // ✅ 1. S3에서 이미지 URL 추출 및 삭제
+        if (log.getImage() != null && log.getImage().getUrl() != null) {
+            s3Uploader.delete(log.getImage().getUrl());
+        }
+
+        // ✅ 2. DB에서 LogSolve + Image 삭제
+        logSolveRepository.delete(log); // cascade = REMOVE 덕분에 Image도 같이 삭제됨
     }
+
 
     public ResponseEntity<?> executeFollowUp(Long logSolveId, String followUpQuestion) {
         try {
             LogSolve logSolve = getLogSolveById(logSolveId);
             String prevJson = logSolve.getResult();
-            String base64Image = encodeImageToBase64(logSolve.getImage().getImageId());
+            String imageUrl = logSolve.getImage().getUrl();
 
             String prompt = String.format("""
                     You are an AI math explanation assistant for elementary school students.
@@ -190,7 +202,7 @@ public class LogSolveService {
                     }
                     ```            
                     """, followUpQuestion, prevJson);
-            Map<String, Object> payload = buildPayload(prompt, base64Image, 2048);
+            Map<String, Object> payload = buildPayload(prompt, imageUrl, 2048);
 
             String gptContent = sendGptRequest(payload);
             Map<String, Object> additional = parseGptJson(gptContent);
@@ -200,38 +212,31 @@ public class LogSolveService {
             logSolve.setResult(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(prevResult));
             logSolveRepository.save(logSolve);
 
-
             return ResponseEntity.ok(Map.of("message", "AI 추가 질문 풀이 완료", "logSolveId", logSolveId));
         } catch (Exception e) {
-
             return ResponseEntity.internalServerError().body(Map.of("message", "추가 질문 처리 실패", "error", e.getMessage()));
         }
     }
-
 
     private LogSolve getLogSolveById(Long id) {
         return logSolveRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("해당 수학문제 해설이 없습니다."));
     }
 
-
-    private String encodeImageToBase64(Long imageId) throws IOException {
-        return Base64.getEncoder().encodeToString(imageService.getImageData(imageId));
-    }
-
-    private Map<String, Object> buildPayload(String prompt, String base64Image, int maxTokens) {
+    private Map<String, Object> buildPayload(String prompt, String imageUrl, int maxTokens) {
         return Map.of(
-                "model", "gpt-4o",
+                "model", "gpt-4.1-mini",
                 "messages", List.of(Map.of(
                         "role", "user",
                         "content", List.of(
                                 Map.of("type", "text", "text", prompt),
-                                Map.of("type", "image_url", "image_url", Map.of("url", "data:image/jpeg;base64," + base64Image))
+                                Map.of("type", "image_url", "image_url", Map.of("url", imageUrl)) // ✅ URL 직접 전달
                         )
                 )),
                 "max_tokens", maxTokens
         );
     }
+
 
     private String sendGptRequest(Map<String, Object> payload) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
@@ -272,6 +277,7 @@ public class LogSolveService {
                             log.getImage().getImageId(),
                             log.getImage().getFileName(),
                             log.getImage().getFileSize(),
+                            log.getImage().getUrl(),
                             log.getImage().getUploadedAt()
                     ),
                     parsedResult,
@@ -283,4 +289,34 @@ public class LogSolveService {
                     log.getImage().getUploadedAt());
         }
     }
+
+
+    @Transactional(readOnly = true)
+    public Map<String, List<LogSolveSimpleResponseDto>> getAllSimpleLogs() {
+        List<LogSolveSimpleResponseDto> logs = logSolveRepository.findAll().stream().map(log -> {
+                    String imageUrl = log.getImage().getUrl();
+                    String problemTitle = "";
+
+                    try {
+                        JsonNode node = mapper.readTree(log.getResult());
+                        problemTitle = node.path("problem_title").asText();
+                    } catch (Exception e) {
+                        // JSON 파싱 실패 무시
+                    }
+
+                    return new LogSolveSimpleResponseDto(
+                            log.getLogSolveId(),
+                            imageUrl,
+                            problemTitle,
+                            log.getImage().getUploadedAt()
+                    );
+                }).sorted(Comparator.comparing(LogSolveSimpleResponseDto::uploadedAt).reversed())
+                .toList();
+
+        Map<String, List<LogSolveSimpleResponseDto>> result = new HashMap<>();
+        result.put("logs", logs);
+        return result;
+    }
+
+
 }
