@@ -6,9 +6,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -31,15 +28,6 @@ public class LogSolveController {
         return logSolveService.handleSolveImage(image);
     }
 
-    @Operation(summary = "해설 로그 전체 목록 조회 (페이징)")
-    @GetMapping
-    public ResponseEntity<?> getAllLogs(
-            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") @RequestParam(name = "page", defaultValue = "0") int page,
-            @Parameter(description = "페이지 크기", example = "3") @RequestParam(name = "size", defaultValue = "3") int size
-    ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "image.uploadedAt"));
-        return ResponseEntity.ok(logSolveService.getAllLogs(pageable));
-    }
 
     @Operation(summary = "단일 문제해설 상세 조회")
     @GetMapping("/{logSolveId}")
@@ -83,6 +71,13 @@ public class LogSolveController {
     public ResponseEntity<TotalLogCountDto> getTotalLogCount() {
         TotalLogCountDto total = logSolveService.getTotalLogCount();
         return ResponseEntity.ok(total);
+    }
+
+
+    @Operation(summary = "모든 문제해설 요약 목록 조회 (imageUrl + title, 전체)")
+    @GetMapping("/all-logs")
+    public ResponseEntity<?> getAllSimpleLogs() {
+        return ResponseEntity.ok(logSolveService.getAllSimpleLogs());
     }
 
 
