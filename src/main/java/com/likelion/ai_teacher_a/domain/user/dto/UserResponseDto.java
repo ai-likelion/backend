@@ -8,7 +8,6 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
 @AllArgsConstructor
 public class UserResponseDto {
     private Long userId;
@@ -17,6 +16,7 @@ public class UserResponseDto {
     private String phone;
     private LocalDateTime createdAt;
     private Long profileImageId; // 프로필 이미지 ID
+    private String profileImageUrl;
 
     public static UserResponseDto from(User user) {
         return new UserResponseDto(
@@ -25,7 +25,8 @@ public class UserResponseDto {
                 user.getEmail(),
                 user.getPhone(),
                 user.getCreatedAt(),
-                user.getProfileImage() != null ? user.getProfileImage().getImageId() : null
+                user.getProfileImage() != null ? user.getProfileImage().getImageId() : null,
+                user.getProfileImageUrl()
         );
     }
 }

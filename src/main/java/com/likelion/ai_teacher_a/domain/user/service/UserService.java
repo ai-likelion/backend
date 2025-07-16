@@ -24,17 +24,6 @@ public class UserService {
 	private final ImageRepository imageRepository;
 	private final JwtUtil jwtUtil;
 
-	public UserResponseDto createUser(UserRequestDto dto) {
-		User user = new User();
-		user.setName(dto.getName());
-		user.setEmail(dto.getEmail());
-		user.setPassword(dto.getPassword()); // ⚠️ 실제 서비스에서는 암호화 필요
-		user.setPhone(dto.getPhone());
-
-		User saved = userRepository.save(user);
-		return UserResponseDto.from(saved);
-	}
-
 	public UserResponseDto getUser(Long id) {
 		User user = userRepository.findById(id)
 			.orElseThrow(() -> new RuntimeException("User not found"));

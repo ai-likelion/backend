@@ -27,12 +27,6 @@ public class UserController {
 
 	private final UserService userService;
 
-	@Operation(summary = "신규 회원 생성")
-	@PostMapping("/signup")
-	public ResponseEntity<UserResponseDto> create(@RequestBody UserRequestDto dto) {
-		return ResponseEntity.ok(userService.createUser(dto));
-	}
-
 	@Operation(summary = "사용자 id 조회")
 	@GetMapping("/{id}")
 	public ResponseEntity<UserResponseDto> get(@PathVariable Long id) {
