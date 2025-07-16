@@ -48,6 +48,9 @@ cloud:
       secret-key: ${S3_SECRET_KEY}
     s3:
       bucket: ${S3_BUCKET}
+
+cors:
+  allowed-origins: ${ALLOW_URL}
 frontend:
   login-success-uri: ${FRONT_LOGIN_SUCCESS}
 
