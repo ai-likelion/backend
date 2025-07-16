@@ -43,16 +43,7 @@ cloudflare:
       access-key-id: ${R2_ACCESS_ID}
       secret-access-key: ${R2_ACCESS_KEY}
     bucket: ${R2_BUCKET}
-cloud:
-  aws:
-    region:
-      static: ap-northeast-2
-    credentials:
-      access-key: AKIATX3PIFBILAQLZMPM
-      secret-key: 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
-    s3:
-      bucket: gpt-vision-bucket-test
-      show-sql: true
+
 cloud:
   aws:
     region:
