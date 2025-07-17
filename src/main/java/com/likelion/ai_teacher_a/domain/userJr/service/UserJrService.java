@@ -6,8 +6,12 @@ import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
 import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrRequestDto;
 import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrResponseDto;
+import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrUpdateRequestDto;
 import com.likelion.ai_teacher_a.domain.userJr.entity.UserJr;
 import com.likelion.ai_teacher_a.domain.userJr.repository.UserJrRepository;
+import com.likelion.ai_teacher_a.global.exception.CustomException;
+import com.likelion.ai_teacher_a.global.exception.ErrorCode;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,9 +36,9 @@ public class UserJrService {
             throw new RuntimeException("이미 같은 이름의 자녀가 등록되어 있습니다.");
         }
 
-        // ✅ 학년 범위 유효성 검사 (1~6: 초1~6)
+        // ✅ 학년 범위 유효성 검사 (1~9: 초1~중3)
         if (!isValidGrade(dto.getSchoolGrade())) {
-            throw new IllegalArgumentException("학년은 초등학교 1학년부터 6학년(1~6)까지만 가능합니다.");
+            throw new IllegalArgumentException("학년은 초등학교 1학년부터 중학교 3학년(1~9)까지만 가능합니다.");
         }
 
         UserJr userJr = UserJr.builder()
@@ -78,6 +82,26 @@ public class UserJrService {
     }
 
     private boolean isValidGrade(int grade) {
-        return grade >= 1 && grade <= 6;
+        return grade >= 1 && grade <= 9;
+    }
+
+    @Transactional
+    public void updateUserJr(Long userJrId, UserJrUpdateRequestDto dto) {
+        UserJr userJr = userJrRepository.findById(userJrId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_JR_NOT_FOUND));
+
+        if (dto.getName() != null) {
+            userJr.setName(dto.getName());
+        }
+
+        if (dto.getNickname() != null) {
+            userJr.setNickname(dto.getNickname());
+        }
+
+        if (dto.getSchoolGrade() != null) {
+            userJr.setSchoolGrade(dto.getSchoolGrade());
+        }
+
+        // 저장은 @Transactional 로 자동 flush 또는 명시적으로 save 가능
     }
 }

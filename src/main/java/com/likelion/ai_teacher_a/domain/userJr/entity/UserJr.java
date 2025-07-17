@@ -9,6 +9,7 @@ import lombok.*;
 
 @Entity
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -19,6 +20,8 @@ public class UserJr {
     private Long id;
 
     private String name;
+
+    private String nickname;
 
     @Min(1) @Max(6)
     private int schoolGrade;
@@ -31,7 +34,4 @@ public class UserJr {
     @JoinColumn(name = "profile_image_id")
     private Image profileImage;
 
-    public void setProfileImage(Image image) {
-        this.profileImage = image;
-    }
 }

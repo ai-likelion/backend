@@ -1,5 +1,6 @@
 package com.likelion.ai_teacher_a.domain.user.controller;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,10 +51,19 @@ public class UserController {
 		return ResponseEntity.ok().build();
 	}
 
-	@Operation(summary = "사용자 삭제")
+	@Operation(summary = "사용자 삭제(관리자)")
 	@DeleteMapping("/{id}")
 	public ResponseEntity<Void> delete(@PathVariable Long id) {
-		userService.deleteUser(id);
+		userService.deleteUserById(id);
 		return ResponseEntity.noContent().build();
 	}
+
+	@Operation(summary = "사용자 탈퇴")
+	@DeleteMapping("/me")
+	public ResponseEntity<Void> deleteCurrentUser(Authentication authentication) {
+		String email = authentication.getName();
+		userService.deleteUserByEmail(email);
+		return ResponseEntity.noContent().build();
+	}
+
 }
