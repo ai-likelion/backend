@@ -14,3 +14,4 @@ public interface LogSolveRepository extends JpaRepository<LogSolve, Long> {
     long countByUser(User user);
 
 }
+
