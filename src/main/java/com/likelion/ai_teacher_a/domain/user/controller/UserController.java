@@ -58,7 +58,7 @@ public class UserController {
 		return ResponseEntity.noContent().build();
 	}
 
-	@Operation(summary = "사용자 탈퇴")
+	@Operation(summary = "회원 탈퇴")
 	@DeleteMapping("/me")
 	public ResponseEntity<Void> deleteCurrentUser(Authentication authentication) {
 		String email = authentication.getName();
