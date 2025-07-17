@@ -7,8 +7,8 @@ import org.springframework.stereotype.Service;
 
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
-import com.likelion.ai_teacher_a.global.auth.util.JwtUtil;
 import com.likelion.ai_teacher_a.global.auth.service.dto.TokenRefreshResult;
+import com.likelion.ai_teacher_a.global.auth.util.JwtUtil;
 
 import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class AuthService {
 		String newRefreshToken = jwtUtil.createRefreshToken(userId);
 		saveUserToken(user, newRefreshToken);
 
-		Cookie refreshTokenCookie = createNewCookie(newRefreshToken);
+		Cookie refreshTokenCookie = CookieBuilder.createRefeshTokenCookie(newRefreshToken);
 
 		long expires = getExpireDateTime();
 
@@ -58,15 +58,6 @@ public class AuthService {
 	private void saveUserToken(User user, String newRefreshToken) {
 		user.setRefreshToken(newRefreshToken);
 		userRepository.save(user);
-	}
-
-	private Cookie createNewCookie(String newRefreshToken) {
-		Cookie refreshTokenCookie = new Cookie("refresh_token", newRefreshToken);
-		refreshTokenCookie.setHttpOnly(true);
-		refreshTokenCookie.setSecure(true);
-		refreshTokenCookie.setPath("/");
-		refreshTokenCookie.setMaxAge(60 * 60 * 24 * 7);
-		return refreshTokenCookie;
 	}
 
 	private TokenRefreshResult buildResponseForInvaildToken() {

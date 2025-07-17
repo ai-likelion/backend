@@ -14,9 +14,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
+import com.likelion.ai_teacher_a.global.auth.service.CookieBuilder;
 import com.likelion.ai_teacher_a.global.auth.util.JwtUtil;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -54,13 +54,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
 		user.setRefreshToken(refreshToken);
 		userRepository.save(user);
-
-		Cookie refreshTokenCookie = new Cookie("refresh_token", refreshToken);
-		refreshTokenCookie.setHttpOnly(true);
-		refreshTokenCookie.setSecure(true);
-		refreshTokenCookie.setPath("/");
-		refreshTokenCookie.setMaxAge(60 * 60 * 24 * 7); // 7일
-		response.addCookie(refreshTokenCookie);
+		response.addCookie(CookieBuilder.createRefeshTokenCookie(refreshToken));
 
 		String targetUrl = UriComponentsBuilder.fromUriString(frontendRedirectUri)
 			.queryParam("accessToken", accessToken)
