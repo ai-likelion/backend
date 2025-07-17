@@ -1,22 +1,22 @@
 package com.likelion.ai_teacher_a.domain.user.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.likelion.ai_teacher_a.domain.user.dto.UserRequestDto;
 import com.likelion.ai_teacher_a.domain.user.dto.UserResponseDto;
 import com.likelion.ai_teacher_a.domain.user.service.UserService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-
-import java.io.IOException;
 
 @Tag(name = "User Controller", description = "사용자 관련 API")
 @RestController
@@ -24,114 +24,36 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestTemplate restTemplate = new RestTemplate();
+	private final UserService userService;
 
-    @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
-    private String clientId;
+	@Operation(summary = "사용자 id 조회")
+	@GetMapping("/{id}")
+	public ResponseEntity<UserResponseDto> get(@PathVariable Long id) {
+		return ResponseEntity.ok(userService.getUser(id));
+	}
 
-    @Value("${spring.security.oauth2.client.registration.kakao.redirect-uri}")
-    private String redirectUriFromApp;
+	@Operation(summary = "사용자 정보 수정")
+	@PatchMapping("/{id}")
+	public ResponseEntity<UserResponseDto> update(
+		@PathVariable Long id,
+		@RequestBody UserRequestDto dto
+	) {
+		return ResponseEntity.ok(userService.updateUser(id, dto));
+	}
 
-    @Operation(summary = "신규 회원 생성")
-    @PostMapping("/signup")
-    public ResponseEntity<UserResponseDto> create(@RequestBody UserRequestDto dto) {
-        return ResponseEntity.ok(userService.createUser(dto));
-    }
+	@Operation(summary = "사용자 프로필 이미지")
+	@PatchMapping("/{userId}/profile-image")
+	public ResponseEntity<Void> setProfileImage(
+		@PathVariable Long userId,
+		@RequestParam Long imageId) {
+		userService.setProfileImage(userId, imageId);
+		return ResponseEntity.ok().build();
+	}
 
-    @Operation(summary = "사용자 id 조회")
-    @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDto> get(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.getUser(id));
-    }
-
-    @Operation(summary = "사용자 정보 수정")
-    @PatchMapping("/{id}")
-    public ResponseEntity<UserResponseDto> update(
-            @PathVariable Long id,
-            @RequestBody UserRequestDto dto
-    ) {
-        return ResponseEntity.ok(userService.updateUser(id, dto));
-    }
-
-    @Operation(summary = "사용자 프로필 이미지")
-    @PatchMapping("/{userId}/profile-image")
-    public ResponseEntity<Void> setProfileImage(
-            @PathVariable Long userId,
-            @RequestParam Long imageId) {
-        userService.setProfileImage(userId, imageId);
-        return ResponseEntity.ok().build();
-    }
-
-    @Operation(summary = "사용자 삭제")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Operation(summary = "카카오 로그인")
-    @GetMapping("/oauth/kakao/login")
-    public void kakaoLogin(HttpServletResponse response) throws IOException {
-        String redirectUri = "https://kauth.kakao.com/oauth/authorize"
-                + "?client_id=" + clientId
-                + "&redirect_uri=" + redirectUriFromApp
-                + "&response_type=code";
-        response.sendRedirect(redirectUri);
-    }
-
-    @Operation(summary = "카카오 콜백")
-    @GetMapping("/oauth/kakao/callback")
-    public ResponseEntity<String> kakaoCallback(@RequestParam("code") String code) throws IOException {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("grant_type", "authorization_code");
-        params.add("client_id", clientId);
-        params.add("redirect_uri", redirectUriFromApp);
-        params.add("code", code);
-
-        HttpEntity<MultiValueMap<String, String>> tokenRequest = new HttpEntity<>(params, headers);
-
-        ResponseEntity<String> tokenResponse = restTemplate.postForEntity(
-                "https://kauth.kakao.com/oauth/token",
-                tokenRequest,
-                String.class
-        );
-
-        String accessToken = objectMapper.readTree(tokenResponse.getBody()).get("access_token").asText();
-
-        HttpHeaders userInfoHeaders = new HttpHeaders();
-        userInfoHeaders.setBearerAuth(accessToken);
-        HttpEntity<?> userInfoRequest = new HttpEntity<>(userInfoHeaders);
-
-        ResponseEntity<String> userInfoResponse = restTemplate.exchange(
-                "https://kapi.kakao.com/v2/user/me",
-                HttpMethod.GET,
-                userInfoRequest,
-                String.class
-        );
-
-        JsonNode userInfo = objectMapper.readTree(userInfoResponse.getBody());
-        String kakaoId = userInfo.get("id").asText();
-        String email = userInfo.get("kakao_account").get("email").asText();
-        String nickname = userInfo.get("properties").get("nickname").asText();
-
-        String jwt = userService.loginWithKakao(kakaoId, email, nickname);
-
-        // Redirect가 아닌 API 테스트용으로 토큰 반환
-        return ResponseEntity.ok(jwt);
-    }
-
-    @Operation(summary = "카카오 로그인 완료")
-    @GetMapping("/login")
-    public void redirectToKakaoLogin(HttpServletResponse response) throws IOException {
-        String redirectUrl = "https://kauth.kakao.com/oauth/authorize"
-                + "?client_id=" + clientId
-                + "&redirect_uri=" + redirectUriFromApp
-                + "&response_type=code";
-        response.sendRedirect(redirectUrl);
-    }
+	@Operation(summary = "사용자 삭제")
+	@DeleteMapping("/{id}")
+	public ResponseEntity<Void> delete(@PathVariable Long id) {
+		userService.deleteUser(id);
+		return ResponseEntity.noContent().build();
+	}
 }

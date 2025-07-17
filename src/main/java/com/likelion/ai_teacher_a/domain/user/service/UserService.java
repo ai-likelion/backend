@@ -1,19 +1,18 @@
 package com.likelion.ai_teacher_a.domain.user.service;
 
+import org.springframework.stereotype.Service;
+
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
 import com.likelion.ai_teacher_a.domain.image.repository.ImageRepository;
 import com.likelion.ai_teacher_a.domain.user.dto.UserRequestDto;
 import com.likelion.ai_teacher_a.domain.user.dto.UserResponseDto;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
-import com.likelion.ai_teacher_a.global.auth.JwtUtil;
+import com.likelion.ai_teacher_a.global.auth.util.JwtUtil;
+
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Optional;
 
 @Service
 @Getter
@@ -21,70 +20,40 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class UserService {
 
-    private final UserRepository userRepository;
-    private final ImageRepository imageRepository;
-    private final JwtUtil jwtUtil;
+	private final UserRepository userRepository;
+	private final ImageRepository imageRepository;
+	private final JwtUtil jwtUtil;
 
-    public UserResponseDto createUser(UserRequestDto dto) {
-        User user = new User();
-        user.setName(dto.getName());
-        user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword()); // ⚠️ 실제 서비스에서는 암호화 필요
-        user.setPhone(dto.getPhone());
+	public UserResponseDto getUser(Long id) {
+		User user = userRepository.findById(id)
+			.orElseThrow(() -> new RuntimeException("User not found"));
+		return UserResponseDto.from(user);
+	}
 
-        User saved = userRepository.save(user);
-        return UserResponseDto.from(saved);
-    }
+	public UserResponseDto updateUser(Long id, UserRequestDto dto) {
+		User user = userRepository.findById(id)
+			.orElseThrow(() -> new RuntimeException("User not found"));
 
-    public UserResponseDto getUser(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return UserResponseDto.from(user);
-    }
+		user.setName(dto.getName());
+		user.setPhone(dto.getPhone());
 
-    public UserResponseDto updateUser(Long id, UserRequestDto dto) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+		return UserResponseDto.from(userRepository.save(user));
+	}
 
-        user.setName(dto.getName());
-        user.setPhone(dto.getPhone());
+	public void deleteUser(Long id) {
+		userRepository.deleteById(id);
+	}
 
-        return UserResponseDto.from(userRepository.save(user));
-    }
+	// 기존 createUser, getUser 등과 함께 위치
+	public void setProfileImage(Long userId, Long imageId) {
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new RuntimeException("User not found"));
 
-    public void deleteUser(Long id) {
-        userRepository.deleteById(id);
-    }
+		Image image = imageRepository.findById(imageId)
+			.orElseThrow(() -> new RuntimeException("Image not found"));
 
-    // 기존 createUser, getUser 등과 함께 위치
-    public void setProfileImage(Long userId, Long imageId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Image image = imageRepository.findById(imageId)
-                .orElseThrow(() -> new RuntimeException("Image not found"));
-
-        user.setProfileImage(image);
-        userRepository.save(user);
-    }
-
-    public String loginWithKakao(String kakaoId, String email, String nickname) {
-        List<User> users = userRepository.findAllByEmail(email);
-
-        User user;
-        if (users.isEmpty()) {
-            user = User.builder()
-                    .kakaoId(kakaoId)
-                    .email(email)
-                    .name(nickname != null ? nickname : "카카오사용자")
-                    .build();
-            userRepository.save(user);
-        } else {
-            user = users.get(0);  // 중복이 있어도 첫 번째 유저 사용
-        }
-
-        return jwtUtil.createToken(user.getEmail());
-    }
-
+		user.setProfileImage(image);
+		userRepository.save(user);
+	}
 }
 
