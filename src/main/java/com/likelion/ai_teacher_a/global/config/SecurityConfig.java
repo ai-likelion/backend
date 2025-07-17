@@ -53,10 +53,14 @@ public class SecurityConfig {
 			)
 			.exceptionHandling(exception -> exception
 				.authenticationEntryPoint((request, response, authException) -> {
-					response.sendError(HttpServletResponse.SC_UNAUTHORIZED); // 인증 실패 (401)
+					response.setContentType("application/json;charset=UTF-8");
+					response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+					response.getWriter().write("{\"message\": \"" + authException.getMessage() + "\"}");
 				})
 				.accessDeniedHandler((request, response, accessDeniedException) -> {
-					response.sendError(HttpServletResponse.SC_FORBIDDEN); // 권한 부족 (403)
+					response.setContentType("application/json;charset=UTF-8");
+					response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+					response.getWriter().write("{\"message\": \"" + accessDeniedException.getMessage() + "\"}");
 				})
 			)
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
