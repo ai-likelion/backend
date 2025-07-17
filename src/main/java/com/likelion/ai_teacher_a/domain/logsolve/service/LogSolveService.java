@@ -13,17 +13,16 @@ import com.likelion.ai_teacher_a.domain.logsolve.dto.LogSolveSimpleResponseDto;
 import com.likelion.ai_teacher_a.domain.logsolve.dto.TotalLogCountDto;
 import com.likelion.ai_teacher_a.domain.logsolve.entity.LogSolve;
 import com.likelion.ai_teacher_a.domain.logsolve.repository.LogSolveRepository;
+import com.likelion.ai_teacher_a.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
-import org.springframework.data.domain.Sort;
 
 import java.io.IOException;
 import java.net.URI;
@@ -32,7 +31,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 
 @Slf4j
@@ -54,49 +55,12 @@ public class LogSolveService {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
-    public Map<String, Object> executeMath(Long logSolveId) {
+    public Map<String, Object> executeMath(Long logSolveId, int grade) {
         try {
             LogSolve logSolve = getLogSolveById(logSolveId);
             String imageUrl = logSolve.getImage().getUrl();
 
-            String prompt = """
-                    Read the following math problem image accurately using OCR, and according to the ‘Our Kid Math Explanation Helper’ app’s parent explanation guide, output only a pure JSON object conforming to the JSON schema below. The math explanation and instructional method should be at a 6th grade elementary school level, including very detailed explanations in 4–6 steps. Since real-time web search for visual aids is not possible, present visual aid suggestions as search keywords and example URLs (placeholders). Please respond only in Korean.
-
-                    ```json
-                    {
-                      "problem_title": "Problem summary title (around 15 characters)",
-                      "problem_text": "Summary of the problem content",
-                      "answer": "Correct answer",
-                      "core_concept": "Core concept of the problem (e.g., 'divisors and multiples')",
-                      "parent_explanation": "Concise guide sentence that a parent can use to explain to their child",
-                      "explanation_steps": [
-                        {
-                          "title": "Step 1: Introduce the triangle angle rule",
-                          "description": "Explain that the sum of the internal angles of any triangle is always 180 degrees."
-                        },
-                        {
-                          "title": "Step 2: Identify the known angle",
-                          "description": "Point out that one of the angles is already given as 55 degrees."
-                        },
-                        {
-                          "title": "Step 3: Calculate the remaining angle sum",
-                          "description": "Subtract the known angle (55°) from 180° to find the sum of the other two angles."
-                        },
-                        {
-                          "title": "Step 4: Show the result of the subtraction",
-                          "description": "180° - 55° = 125°, which is the combined measure of angles ㉠ and ㉡."
-                        },
-                        {
-                          "title": "Step 5: Summarize the method",
-                          "description": "Remind the student that this approach works for any triangle when two angles are known."
-                        }
-                      ],
-                      "example_questions": [
-                        "\\"What should we check at this step?\\"",
-                        "\\"Why should we solve it this way?\\""
-                      ]
-                    }
-                    ```""";
+            String prompt = buildPromptByGrade(grade);
             Map<String, Object> payload = buildPayload(prompt, imageUrl, 8192);
 
             String gptContent = sendGptRequest(payload);
@@ -114,35 +78,84 @@ public class LogSolveService {
         }
     }
 
-    public ResponseEntity<?> handleSolveImage(MultipartFile imageFile) {
+    private String buildPromptByGrade(int grade) {
+        return String.format("""
+                Read the following math problem image accurately using OCR, and according to the ‘Our Kid Math Explanation Helper’ app’s parent explanation guide, output only a pure JSON object conforming to the JSON schema below. The math explanation and instructional method should be at a 6th grade elementary school level, including very detailed explanations in 4–6 steps. Since real-time web search for visual aids is not possible, present visual aid suggestions as search keywords and example URLs (placeholders). Please respond only in Korean.
+
+                ```json
+                {
+                  "problem_title": "Problem summary title (around 15 characters)",
+                  "problem_text": "Summary of the problem content",
+                  "answer": "Correct answer",
+                  "core_concept": "Core concept of the problem (e.g., 'divisors and multiples')",
+                  "parent_explanation": "Concise guide sentence that a parent can use to explain to their child",
+                  "explanation_steps": [
+                    {
+                      "title": "Step 1: Introduce the triangle angle rule",
+                      "description": "Explain that the sum of the internal angles of any triangle is always 180 degrees."
+                    },
+                    {
+                      "title": "Step 2: Identify the known angle",
+                      "description": "Point out that one of the angles is already given as 55 degrees."
+                    },
+                    {
+                      "title": "Step 3: Calculate the remaining angle sum",
+                      "description": "Subtract the known angle (55°) from 180° to find the sum of the other two angles."
+                    },
+                    {
+                      "title": "Step 4: Show the result of the subtraction",
+                      "description": "180° - 55° = 125°, which is the combined measure of angles ㉠ and ㉡."
+                    },
+                    {
+                      "title": "Step 5: Summarize the method",
+                      "description": "Remind the student that this approach works for any triangle when two angles are known."
+                    }
+                  ],
+                  "example_questions": [
+                    "\\"What should we check at this step?\\"",
+                    "\\"Why should we solve it this way?\\""
+                  ]
+                }
+                ```""", grade);
+    }
+
+
+    public ResponseEntity<?> handleSolveImage(MultipartFile imageFile, User user, int grade) {
         try {
-            Long logSolveId = createLogAndReturnId(imageFile);
-            executeMath(logSolveId);
+            if (grade < 1 || grade > 6) {
+                return ResponseEntity.badRequest().body(Map.of("message", "학년 정보가 올바르지 않습니다 (1~6학년만 허용)"));
+            }
+
+            Long logSolveId = createLogAndReturnId(imageFile, user);
+            executeMath(logSolveId, grade);
+
             return ResponseEntity.ok(Map.of("message", "AI 풀이 완료", "logSolveId", logSolveId));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("message", "AI 처리 실패", "error", e.getMessage()));
         }
     }
 
-    public Long createLogAndReturnId(MultipartFile imageFile) throws IOException {
-        ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC);
+    public Long createLogAndReturnId(MultipartFile imageFile, User user) throws IOException {
+        ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC, user);
         Image image = imageRepository.findById(imageDto.getImageId()).orElseThrow(() -> new RuntimeException("이미지 없음"));
 
-        return logSolveRepository.save(LogSolve.builder().image(image).result("처리 중").build()).getLogSolveId();
+        return logSolveRepository.save(LogSolve.builder().image(image).user(user).result("처리 중").build()).getLogSolveId();
     }
 
 
     @Transactional(readOnly = true)
-    public TotalLogCountDto getTotalLogCount() {
-        long total = logSolveRepository.count();
+    public TotalLogCountDto getTotalLogCount(User user) {
+        long total = logSolveRepository.countByUser(user) + 321L;
         return new TotalLogCountDto(total);
     }
 
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getLogDetail(Long logSolveId) {
+    public Map<String, Object> getLogDetail(Long logSolveId, User user) {
         LogSolve log = getLogSolveById(logSolveId);
-
+        if (!log.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("해당 사용자에게 접근 권한이 없습니다.");
+        }
         if ("처리 중".equals(log.getResult())) {
             return Map.of("logSolveId", logSolveId, "status", "processing", "message", "AI 해설이 아직 완료되지 않았습니다.");
         }
@@ -158,22 +171,25 @@ public class LogSolveService {
     }
 
     @Transactional
-    public void deleteLogById(Long logSolveId) {
+    public void deleteLogById(Long logSolveId, User user) {
         LogSolve log = getLogSolveById(logSolveId);
-
-        // ✅ 1. S3에서 이미지 URL 추출 및 삭제
+        if (!log.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("해당 사용자에게 접근 권한이 없습니다.");
+        }
         if (log.getImage() != null && log.getImage().getUrl() != null) {
             s3Uploader.delete(log.getImage().getUrl());
         }
 
-        // ✅ 2. DB에서 LogSolve + Image 삭제
-        logSolveRepository.delete(log); // cascade = REMOVE 덕분에 Image도 같이 삭제됨
+        logSolveRepository.delete(log);
     }
 
 
-    public ResponseEntity<?> executeFollowUp(Long logSolveId, String followUpQuestion) {
+    public ResponseEntity<?> executeFollowUp(Long logSolveId, String followUpQuestion, User user) {
         try {
             LogSolve logSolve = getLogSolveById(logSolveId);
+            if (!logSolve.getUser().getId().equals(user.getId())) {
+                return ResponseEntity.status(403).body(Map.of("message", "권한이 없습니다."));
+            }
             String prevJson = logSolve.getResult();
             String imageUrl = logSolve.getImage().getUrl();
 
@@ -234,7 +250,7 @@ public class LogSolveService {
                         "role", "user",
                         "content", List.of(
                                 Map.of("type", "text", "text", prompt),
-                                Map.of("type", "image_url", "image_url", Map.of("url", imageUrl)) // ✅ URL 직접 전달
+                                Map.of("type", "image_url", "image_url", Map.of("url", imageUrl))
                         )
                 )),
                 "max_tokens", maxTokens
@@ -296,9 +312,9 @@ public class LogSolveService {
 
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getAllSimpleLogs(Pageable pageable) {
-        Page<LogSolve> page = logSolveRepository.findAll(pageable);
+    public Map<String, Object> getAllSimpleLogs(Pageable pageable, User user) {
 
+        Page<LogSolve> page = logSolveRepository.findAllByUser(pageable, user);
         List<LogSolveSimpleResponseDto> logs = page.getContent().stream().map(log -> {
             String imageUrl = log.getImage().getUrl();
             String problemTitle = "";
@@ -307,7 +323,7 @@ public class LogSolveService {
                 JsonNode node = mapper.readTree(log.getResult());
                 problemTitle = node.path("problem_title").asText();
             } catch (Exception e) {
-                // JSON 파싱 실패 무시
+
             }
 
             return new LogSolveSimpleResponseDto(
@@ -325,7 +341,6 @@ public class LogSolveService {
                 "currentPage", page.getNumber()
         );
     }
-
 
 
 }
