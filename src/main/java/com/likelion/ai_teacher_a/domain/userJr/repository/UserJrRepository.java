@@ -7,4 +7,7 @@ import java.util.List;
 
 public interface UserJrRepository extends JpaRepository<UserJr, Long> {
     List<UserJr> findByParentId(Long parentId);
+
+    // ✅ 중복 체크 메서드 추가
+    boolean existsByParentIdAndName(Long parentId, String name);
 }

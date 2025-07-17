@@ -17,22 +17,22 @@ import java.time.LocalDateTime;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // ✅ DB 기본키명과 자바 이름 통일
+    @Column(nullable = false)
+    private Long id;
 
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(nullable = false)
     private String email;
 
     @Column(nullable = false)
     private String name;
     private String password;
-    private String provider; // "KAKAO" 또는 "LOCAL"
+    private String provider;
     private String phone;
-    private String kakaoId;
+    private String profileImageUrl;
+    private String refreshToken;
 
     @OneToOne
     private Image profileImage;

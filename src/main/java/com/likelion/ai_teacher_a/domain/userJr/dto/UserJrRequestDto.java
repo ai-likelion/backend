@@ -1,13 +1,18 @@
 package com.likelion.ai_teacher_a.domain.userJr.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
-import lombok.Setter;
 
 @Getter
-@Setter
 public class UserJrRequestDto {
-    private Long parentId;       // 학부모 ID
-    private String name;
-    private String schoolGrade;
-}
 
+    @NotBlank
+    private String name;
+
+    @NotNull
+    private Integer schoolGrade;
+
+    @NotNull
+    private Long parentId;
+}
