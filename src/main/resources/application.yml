@@ -11,7 +11,7 @@ spring:
         registration:
           kakao:
             client-id: ${OAUTH_CLIENT_ID:nnnnnn}
-            redirect-uri: "http://localhost:8080/oauth/kakao/callback"
+            redirect-uri: ${REDIRECT_URI:http://localhost:8080/oauth/kakao/callback}
             authorization-grant-type: authorization_code
             client-name: Kakao
             scope: profile_nickname, account_email
@@ -43,14 +43,17 @@ cloudflare:
       access-key-id: ${R2_ACCESS_ID}
       secret-access-key: ${R2_ACCESS_KEY}
     bucket: ${R2_BUCKET}
+
 cloud:
   aws:
     region:
-      static: ap-northeast-2
+      static: ${S3_REGION}
     credentials:
-      access-key: AKIATX3PIFBILAQLZMPM
-      secret-key: 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
+      access-key: ${S3_ACCESS_KEY}
+      secret-key: ${S3_SECRET_KEY}
     s3:
-      bucket: gpt-vision-bucket-test
+      bucket: ${S3_BUCKET}
 frontend:
   redirect-uri: http://localhost:3000/login/success
+
+

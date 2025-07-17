@@ -5,22 +5,26 @@ import com.likelion.ai_teacher_a.domain.logsolve.service.LogSolveService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.PermitAll;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.Pageable;
+
+
 
 import java.util.Map;
 
 @Tag(name = "Math AI 문제해설", description = "AI 이미지 문제 해설 및 로그 관리 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/public/math")
+@RequestMapping("/api/math")
 public class LogSolveController {
 
     private final LogSolveService logSolveService;
@@ -31,15 +35,6 @@ public class LogSolveController {
         return logSolveService.handleSolveImage(image);
     }
 
-    @Operation(summary = "해설 로그 전체 목록 조회 (페이징)")
-    @GetMapping
-    public ResponseEntity<?> getAllLogs(
-            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") @RequestParam(name = "page", defaultValue = "0") int page,
-            @Parameter(description = "페이지 크기", example = "3") @RequestParam(name = "size", defaultValue = "3") int size
-    ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "image.uploadedAt"));
-        return ResponseEntity.ok(logSolveService.getAllLogs(pageable));
-    }
 
     @Operation(summary = "단일 문제해설 상세 조회")
     @GetMapping("/{logSolveId}")
@@ -84,6 +79,19 @@ public class LogSolveController {
         TotalLogCountDto total = logSolveService.getTotalLogCount();
         return ResponseEntity.ok(total);
     }
+
+
+    @Operation(summary = "모든 문제해설 요약 목록 조회 (imageUrl + title, 전체)")
+    @GetMapping("/all-logs")
+    public ResponseEntity<?> getSimpleLogs(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "3") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "image.uploadedAt")); // ✅ 핵심!
+        return ResponseEntity.ok(logSolveService.getAllSimpleLogs(pageable));
+    }
+
+
 
 
 }

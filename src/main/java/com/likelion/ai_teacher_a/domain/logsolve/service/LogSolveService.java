@@ -1,5 +1,6 @@
 package com.likelion.ai_teacher_a.domain.logsolve.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.likelion.ai_teacher_a.domain.image.dto.ImageResponseDto;
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
@@ -8,7 +9,7 @@ import com.likelion.ai_teacher_a.domain.image.repository.ImageRepository;
 import com.likelion.ai_teacher_a.domain.image.service.ImageService;
 import com.likelion.ai_teacher_a.domain.image.service.S3Uploader;
 import com.likelion.ai_teacher_a.domain.logsolve.dto.LogSolveResponseDto;
-import com.likelion.ai_teacher_a.domain.logsolve.dto.PagedLogResponseDto;
+import com.likelion.ai_teacher_a.domain.logsolve.dto.LogSolveSimpleResponseDto;
 import com.likelion.ai_teacher_a.domain.logsolve.dto.TotalLogCountDto;
 import com.likelion.ai_teacher_a.domain.logsolve.entity.LogSolve;
 import com.likelion.ai_teacher_a.domain.logsolve.repository.LogSolveRepository;
@@ -16,11 +17,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 
 import java.io.IOException;
 import java.net.URI;
@@ -29,9 +32,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 
 @Slf4j
@@ -128,13 +129,6 @@ public class LogSolveService {
         Image image = imageRepository.findById(imageDto.getImageId()).orElseThrow(() -> new RuntimeException("이미지 없음"));
 
         return logSolveRepository.save(LogSolve.builder().image(image).result("처리 중").build()).getLogSolveId();
-    }
-
-    @Transactional(readOnly = true)
-    public PagedLogResponseDto getAllLogs(Pageable pageable) {
-        Page<LogSolve> logsPage = logSolveRepository.findAll(pageable);
-        List<LogSolveResponseDto> logs = logsPage.stream().map(this::convertLogToDto).toList();
-        return new PagedLogResponseDto(logs, logsPage.getTotalElements(), logsPage.getTotalPages(), logsPage.getNumber());
     }
 
 
@@ -299,4 +293,39 @@ public class LogSolveService {
                     log.getImage().getUploadedAt());
         }
     }
+
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getAllSimpleLogs(Pageable pageable) {
+        Page<LogSolve> page = logSolveRepository.findAll(pageable);
+
+        List<LogSolveSimpleResponseDto> logs = page.getContent().stream().map(log -> {
+            String imageUrl = log.getImage().getUrl();
+            String problemTitle = "";
+
+            try {
+                JsonNode node = mapper.readTree(log.getResult());
+                problemTitle = node.path("problem_title").asText();
+            } catch (Exception e) {
+                // JSON 파싱 실패 무시
+            }
+
+            return new LogSolveSimpleResponseDto(
+                    log.getLogSolveId(),
+                    imageUrl,
+                    problemTitle,
+                    log.getImage().getUploadedAt()
+            );
+        }).toList();
+
+        return Map.of(
+                "logs", logs,
+                "totalElements", page.getTotalElements(),
+                "totalPages", page.getTotalPages(),
+                "currentPage", page.getNumber()
+        );
+    }
+
+
+
 }
