@@ -26,12 +26,24 @@ public class UserJrService {
         User parent = userRepository.findById(dto.getParentId())
                 .orElseThrow(() -> new RuntimeException("부모 사용자를 찾을 수 없습니다."));
 
-        UserJr jr = new UserJr();
-        jr.setParent(parent);
-        jr.setName(dto.getName());
-        jr.setSchoolGrade(dto.getSchoolGrade());
+        // ✅ 중복 자녀 이름 방지 (같은 부모 기준)
+        boolean exists = userJrRepository.existsByParentIdAndName(dto.getParentId(), dto.getName());
+        if (exists) {
+            throw new RuntimeException("이미 같은 이름의 자녀가 등록되어 있습니다.");
+        }
 
-        return UserJrResponseDto.from(userJrRepository.save(jr));
+        // ✅ 학년 범위 유효성 검사 (1~6: 초1~6)
+        if (!isValidGrade(dto.getSchoolGrade())) {
+            throw new IllegalArgumentException("학년은 초등학교 1학년부터 6학년(1~6)까지만 가능합니다.");
+        }
+
+        UserJr userJr = UserJr.builder()
+                .parent(parent)
+                .name(dto.getName())
+                .schoolGrade(dto.getSchoolGrade())
+                .build();
+
+        return UserJrResponseDto.from(userJrRepository.save(userJr));
     }
 
     public List<UserJrResponseDto> findByParent(Long parentId) {
@@ -47,8 +59,6 @@ public class UserJrService {
         );
     }
 
-    // 기존 자녀 생성, 조회, 삭제 등 생략...
-
     public void setProfileImage(Long userJrId, Long imageId) {
         UserJr userJr = userJrRepository.findById(userJrId)
                 .orElseThrow(() -> new RuntimeException("UserJr not found"));
@@ -61,7 +71,13 @@ public class UserJrService {
     }
 
     public void delete(Long userJrId) {
+        if (!userJrRepository.existsById(userJrId)) {
+            throw new RuntimeException("삭제할 자녀 정보가 존재하지 않습니다.");
+        }
         userJrRepository.deleteById(userJrId);
     }
-}
 
+    private boolean isValidGrade(int grade) {
+        return grade >= 1 && grade <= 6;
+    }
+}

@@ -3,32 +3,35 @@ package com.likelion.ai_teacher_a.domain.userJr.entity;
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.*;
 
 @Entity
-@Table(name = "user_jr")
 @Getter
-@Setter
-@NoArgsConstructor
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class UserJr {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long userJrId;
+    private Long id;
+
+    private String name;
+
+    @Min(1) @Max(6)
+    private int schoolGrade;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private User parent;
 
-    private String name;
-
-    private String schoolGrade;
-
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "profile_image_id")
     private Image profileImage;
+
+    public void setProfileImage(Image image) {
+        this.profileImage = image;
+    }
 }
