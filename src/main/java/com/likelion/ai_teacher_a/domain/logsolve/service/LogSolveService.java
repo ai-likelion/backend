@@ -80,7 +80,7 @@ public class LogSolveService {
 
     private String buildPromptByGrade(int grade) {
         return String.format("""
-                Read the following math problem image accurately using OCR, and according to the ‘Our Kid Math Explanation Helper’ app’s parent explanation guide, output only a pure JSON object conforming to the JSON schema below. The math explanation and instructional method should be at a 6th grade elementary school level, including very detailed explanations in 4–6 steps. Since real-time web search for visual aids is not possible, present visual aid suggestions as search keywords and example URLs (placeholders). Please respond only in Korean.
+                Read the following math problem image accurately using OCR, and according to the ‘Our Kid Math Explanation Helper’ app’s parent explanation guide, output only a pure JSON object conforming to the JSON schema below. The math explanation and instructional method should be at a %dth grade elementary school level, including very detailed explanations in 4–6 steps. Please respond only in Korean.
 
                 ```json
                 {
