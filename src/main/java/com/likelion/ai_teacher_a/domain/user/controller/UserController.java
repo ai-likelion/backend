@@ -51,12 +51,14 @@ public class UserController {
 		return ResponseEntity.ok().build();
 	}
 
+	@Operation(summary = "사용자 삭제(관리자)")
 	@DeleteMapping("/{id}")
 	public ResponseEntity<Void> delete(@PathVariable Long id) {
 		userService.deleteUserById(id);
 		return ResponseEntity.noContent().build();
 	}
 
+	@Operation(summary = "사용자 탈퇴")
 	@DeleteMapping("/me")
 	public ResponseEntity<Void> deleteCurrentUser(Authentication authentication) {
 		String email = authentication.getName();
