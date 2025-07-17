@@ -1,5 +1,8 @@
 package com.likelion.ai_teacher_a.domain.user.service;
 
+import com.likelion.ai_teacher_a.global.exception.CustomException;
+import com.likelion.ai_teacher_a.global.exception.ErrorCode;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
@@ -26,13 +29,13 @@ public class UserService {
 
 	public UserResponseDto getUser(Long id) {
 		User user = userRepository.findById(id)
-			.orElseThrow(() -> new RuntimeException("User not found"));
+				.orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 		return UserResponseDto.from(user);
 	}
 
 	public UserResponseDto updateUser(Long id, UserRequestDto dto) {
 		User user = userRepository.findById(id)
-			.orElseThrow(() -> new RuntimeException("User not found"));
+				.orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
 		user.setName(dto.getName());
 		user.setPhone(dto.getPhone());
@@ -40,20 +43,28 @@ public class UserService {
 		return UserResponseDto.from(userRepository.save(user));
 	}
 
-	public void deleteUser(Long id) {
-		userRepository.deleteById(id);
-	}
-
-	// 기존 createUser, getUser 등과 함께 위치
 	public void setProfileImage(Long userId, Long imageId) {
 		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new RuntimeException("User not found"));
+				.orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
 		Image image = imageRepository.findById(imageId)
-			.orElseThrow(() -> new RuntimeException("Image not found"));
+				.orElseThrow(() -> new CustomException(ErrorCode.IMAGE_NOT_FOUND)); // 이미지 관련 에러코드 추가 필요
 
 		user.setProfileImage(image);
 		userRepository.save(user);
+	}
+
+	public void deleteUserById(Long id) {
+		User user = userRepository.findById(id)
+				.orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+		userRepository.delete(user);
+	}
+
+	public void deleteUserByEmail(String email) {
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+		userRepository.delete(user);
 	}
 }
 

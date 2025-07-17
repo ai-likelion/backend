@@ -2,6 +2,7 @@ package com.likelion.ai_teacher_a.domain.userJr.controller;
 
 import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrRequestDto;
 import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrResponseDto;
+import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrUpdateRequestDto;
 import com.likelion.ai_teacher_a.domain.userJr.service.UserJrService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -52,6 +53,16 @@ public class UserJrController {
             @RequestParam Long imageId
     ) {
         userJrService.setProfileImage(userJrId, imageId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "자녀 정보 수정")
+    @PatchMapping("/{id}")
+    public ResponseEntity<Void> updateUserJr(
+            @PathVariable Long id,
+            @RequestBody UserJrUpdateRequestDto dto
+    ) {
+        userJrService.updateUserJr(id, dto);
         return ResponseEntity.ok().build();
     }
 }
