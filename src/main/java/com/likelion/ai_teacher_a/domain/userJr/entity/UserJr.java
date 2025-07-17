@@ -20,7 +20,7 @@ public class UserJr {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long userJrId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "parent_id")
     private User parent;
 

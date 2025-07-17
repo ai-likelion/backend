@@ -17,8 +17,8 @@ import java.time.LocalDateTime;
 public class User {
 
     @Id
-    @GeneratedValue
-    private Long userId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id; // ✅ DB 기본키명과 자바 이름 통일
 
     @CreatedDate
     @Column(updatable = false)

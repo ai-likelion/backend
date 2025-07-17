@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 @Tag(name = "Kakao Controller", description = "카카오 로그인 관련 API")
 @RestController
 @RequiredArgsConstructor
@@ -63,6 +65,7 @@ public class KakaoAuthController {
             params.add("code", code);
 
             HttpEntity<MultiValueMap<String, String>> tokenRequest = new HttpEntity<>(params, headers);
+
             ResponseEntity<String> tokenResponse = restTemplate.postForEntity(
                     "https://kauth.kakao.com/oauth/token",
                     tokenRequest,
@@ -95,8 +98,7 @@ public class KakaoAuthController {
             String jwt = userService.loginWithKakao(kakaoId, email, nickname);
 
             // 4. 리디렉션
-            String encodedToken = URLEncoder.encode(jwt, StandardCharsets.UTF_8);
-            response.sendRedirect(frontendRedirectUri + "?token=" + encodedToken);
+            response.sendRedirect(frontendRedirectUri + "?token=" + jwt);
 
         } catch (Exception e) {
             e.printStackTrace(); // 콘솔에 전체 예외 로그 출력

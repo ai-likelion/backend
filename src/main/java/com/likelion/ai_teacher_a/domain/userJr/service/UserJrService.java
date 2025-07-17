@@ -35,7 +35,7 @@ public class UserJrService {
     }
 
     public List<UserJrResponseDto> findByParent(Long parentId) {
-        return userJrRepository.findByParentUserId(parentId).stream()
+        return userJrRepository.findByParentId(parentId).stream()
                 .map(UserJrResponseDto::from)
                 .collect(Collectors.toList());
     }

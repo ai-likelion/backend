@@ -38,15 +38,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7); // "Bearer " 제거
-        String email = jwtUtil.extractEmail(token);
-
+        String email;
         try {
             email = jwtUtil.extractEmail(token);
         } catch (Exception e) {
             logger.warn("JWT 토큰 파싱 실패: {}", e.getMessage());
-            filterChain.doFilter(request, response); // 예외 발생 시 필터 통과
+            filterChain.doFilter(request, response);
             return;
         }
+
 
         // 인증되지 않은 상태에서만 처리
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
