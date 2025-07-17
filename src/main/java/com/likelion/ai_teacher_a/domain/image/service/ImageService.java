@@ -4,6 +4,7 @@ import com.likelion.ai_teacher_a.domain.image.dto.ImageResponseDto;
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
 import com.likelion.ai_teacher_a.domain.image.entity.ImageType;
 import com.likelion.ai_teacher_a.domain.image.repository.ImageRepository;
+import com.likelion.ai_teacher_a.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,34 +22,35 @@ public class ImageService {
 
 
     @Transactional
-    public ImageResponseDto uploadToS3AndSave(MultipartFile file, ImageType type) throws IOException {
-        // ✅ 1. S3 업로드
+    public ImageResponseDto uploadToS3AndSave(MultipartFile file, ImageType type, User user) throws IOException {
+
         String url = s3Uploader.upload(file);
 
-        // ✅ 2. DB 저장
+
         Image image = Image.builder()
                 .fileName(file.getOriginalFilename())
                 .fileSize((int) file.getSize())// 바이너리 저장 안 함
                 .type(type)
                 .url(url)
+                .user(user)
                 .build();
 
         imageRepository.save(image);
 
-        // ✅ 3. DTO 반환
+
         return new ImageResponseDto(
                 image.getImageId(),
                 image.getFileName(),
                 image.getFileSize(),
-                image.getUrl(),            // ✅ 4번째: url
-                image.getUploadedAt()      // ✅ 5번째: uploadedAt
+                image.getUrl(),
+                image.getUploadedAt()
         );
 
     }
 
 
     @Transactional
-    public void deleteImage(Long imageId) {
+    public void deleteImage(Long imageId, User user) {
         Image image = imageRepository.findById(imageId)
                 .orElseThrow(() -> new RuntimeException("이미지를 찾을 수 없습니다."));
 
@@ -57,14 +59,13 @@ public class ImageService {
             s3Uploader.delete(image.getUrl());
         }
 
-        // DB에서 삭제
         imageRepository.delete(image);
     }
 
 
     @Transactional(readOnly = true)
-    public String getImageUrl(Long imageId) {
-        Image image = imageRepository.findById(imageId)
+    public String getImageUrl(Long imageId, User user) {
+        Image image = imageRepository.findByImageIdAndUser(imageId, user)
                 .orElseThrow(() -> new RuntimeException("이미지를 찾을 수 없습니다."));
         return image.getUrl();
     }

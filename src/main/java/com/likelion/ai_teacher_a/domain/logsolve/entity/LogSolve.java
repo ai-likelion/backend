@@ -1,6 +1,7 @@
 package com.likelion.ai_teacher_a.domain.logsolve.entity;
 
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
+import com.likelion.ai_teacher_a.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,4 +23,9 @@ public class LogSolve {
 
     @Column(columnDefinition = "TEXT")
     private String result;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
 }

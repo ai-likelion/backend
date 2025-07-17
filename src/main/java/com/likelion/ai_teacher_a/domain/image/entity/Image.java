@@ -1,5 +1,6 @@
 package com.likelion.ai_teacher_a.domain.image.entity;
 
+import com.likelion.ai_teacher_a.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,6 +28,9 @@ public class Image {
     @Enumerated(EnumType.STRING)
     private ImageType type; // PROFILE, ETC
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     private String url;
 

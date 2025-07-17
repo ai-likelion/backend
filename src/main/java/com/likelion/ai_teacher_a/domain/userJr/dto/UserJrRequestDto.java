@@ -11,7 +11,7 @@ public class UserJrRequestDto {
     private String name;
 
     @NotNull
-    private Integer schoolGrade;
+    private int schoolGrade;
 
     @NotNull
     private Long parentId;
