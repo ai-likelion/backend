@@ -18,21 +18,33 @@ public class UserJr {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long userJrId;
 
-    private String name;
 
     private String nickname;
 
-    @Min(1) @Max(6)
+    @Min(1)
+    @Max(6)
     private int schoolGrade;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    private User parent;
+    @JoinColumn(name = "user_id")
+    private User user;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_image_id")
-    private Image profileImage;
+
+    @OneToOne(orphanRemoval = true, cascade = CascadeType.ALL)
+    @JoinColumn(name = "image_id")
+    private Image image;
+
+
+
+    @Builder
+    public UserJr(String nickname, int schoolGrade, User user, Image image) {
+        this.nickname = nickname;
+        this.schoolGrade = schoolGrade;
+        this.user = user;
+        this.image = image;
+    }
+
 
 }

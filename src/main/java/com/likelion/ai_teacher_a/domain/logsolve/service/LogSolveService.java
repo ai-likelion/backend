@@ -14,6 +14,7 @@ import com.likelion.ai_teacher_a.domain.logsolve.dto.TotalLogCountDto;
 import com.likelion.ai_teacher_a.domain.logsolve.entity.LogSolve;
 import com.likelion.ai_teacher_a.domain.logsolve.repository.LogSolveRepository;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
+import com.likelion.ai_teacher_a.domain.userJr.entity.UserJr;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -120,13 +121,13 @@ public class LogSolveService {
     }
 
 
-    public ResponseEntity<?> handleSolveImage(MultipartFile imageFile, User user, int grade) {
+    public ResponseEntity<?> handleSolveImage(MultipartFile imageFile, User user, UserJr userJr, int grade) {
         try {
             if (grade < 1 || grade > 6) {
                 return ResponseEntity.badRequest().body(Map.of("message", "학년 정보가 올바르지 않습니다 (1~6학년만 허용)"));
             }
 
-            Long logSolveId = createLogAndReturnId(imageFile, user);
+            Long logSolveId = createLogAndReturnId(imageFile, user, userJr);
             executeMath(logSolveId, grade);
 
             return ResponseEntity.ok(Map.of("message", "AI 풀이 완료", "logSolveId", logSolveId));
@@ -135,17 +136,25 @@ public class LogSolveService {
         }
     }
 
-    public Long createLogAndReturnId(MultipartFile imageFile, User user) throws IOException {
-        ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC, user);
-        Image image = imageRepository.findById(imageDto.getImageId()).orElseThrow(() -> new RuntimeException("이미지 없음"));
 
-        return logSolveRepository.save(LogSolve.builder().image(image).user(user).result("처리 중").build()).getLogSolveId();
+    public Long createLogAndReturnId(MultipartFile imageFile, User user, UserJr userJr) throws IOException {
+        ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC, user);
+        Image image = imageRepository.findById(imageDto.getImageId())
+                .orElseThrow(() -> new RuntimeException("이미지 없음"));
+
+        return logSolveRepository.save(
+                LogSolve.builder()
+                        .image(image)
+                        .user(user)
+                        .userJr(userJr)
+                        .build()
+        ).getLogSolveId();
     }
 
 
     @Transactional(readOnly = true)
-    public TotalLogCountDto getTotalLogCount(User user) {
-        long total = logSolveRepository.countByUser(user) + 321L;
+    public TotalLogCountDto getTotalLogCount() {
+        long total = logSolveRepository.count() + 321L;
         return new TotalLogCountDto(total);
     }
 
@@ -312,9 +321,9 @@ public class LogSolveService {
 
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getAllSimpleLogs(Pageable pageable, User user) {
+    public Map<String, Object> getAllSimpleLogs(Pageable pageable, UserJr userJr) {
+        Page<LogSolve> page = logSolveRepository.findAllByUserJr(pageable, userJr);
 
-        Page<LogSolve> page = logSolveRepository.findAllByUser(pageable, user);
         List<LogSolveSimpleResponseDto> logs = page.getContent().stream().map(log -> {
             String imageUrl = log.getImage().getUrl();
             String problemTitle = "";
@@ -323,7 +332,7 @@ public class LogSolveService {
                 JsonNode node = mapper.readTree(log.getResult());
                 problemTitle = node.path("problem_title").asText();
             } catch (Exception e) {
-
+                // 로깅 또는 무시
             }
 
             return new LogSolveSimpleResponseDto(
