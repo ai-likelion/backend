@@ -34,7 +34,7 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQL8Dialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect

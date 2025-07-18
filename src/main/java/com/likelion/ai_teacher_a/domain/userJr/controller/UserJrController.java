@@ -4,12 +4,15 @@ import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrRequestDto;
 import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrResponseDto;
 import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrUpdateRequestDto;
 import com.likelion.ai_teacher_a.domain.userJr.service.UserJrService;
+import com.likelion.ai_teacher_a.global.auth.resolver.annotation.LoginUserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -21,48 +24,49 @@ public class UserJrController {
 
     private final UserJrService userJrService;
 
-    @Operation(summary = "사용자 자녀 등록")
-    @PostMapping
-    public ResponseEntity<UserJrResponseDto> create(@RequestBody @Valid UserJrRequestDto dto) {
-        return ResponseEntity.ok(userJrService.create(dto));
+    @Operation(summary = "사용자 자녀 등록 (프로필 이미지 포함)")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserJrResponseDto> create(
+            @LoginUserId Long userId,
+            @RequestPart("metadata") @Valid UserJrRequestDto dto,
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
+        return ResponseEntity.ok(userJrService.create(dto, image, userId));
     }
+
 
     @Operation(summary = "특정 자녀 조회")
     @GetMapping("/{id}")
-    public ResponseEntity<UserJrResponseDto> get(@PathVariable Long id) {
-        return ResponseEntity.ok(userJrService.findById(id));
+    public ResponseEntity<UserJrResponseDto> get(@LoginUserId Long userId,
+                                                 @PathVariable Long id) {
+        return ResponseEntity.ok(userJrService.findById(id, userId));
     }
 
     @Operation(summary = "사용자 기준 자녀 목록 조회")
-    @GetMapping("/parent/{parentId}")
-    public ResponseEntity<List<UserJrResponseDto>> listByParent(@PathVariable Long parentId) {
-        return ResponseEntity.ok(userJrService.findByParent(parentId));
+    @GetMapping("/parent")
+    public ResponseEntity<List<UserJrResponseDto>> listByParent(@LoginUserId Long userId) {
+        return ResponseEntity.ok(userJrService.findByParent(userId));
     }
 
     @Operation(summary = "자녀 삭제")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        userJrService.delete(id);
+    public ResponseEntity<Void> delete(@LoginUserId Long userId,
+                                       @PathVariable Long id) {
+        userJrService.delete(id, userId);
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "자녀 프로필 이미지 설정")
-    @PatchMapping("/{userJrId}/profile-image")
-    public ResponseEntity<Void> setProfileImage(
-            @PathVariable Long userJrId,
-            @RequestParam Long imageId
+
+    @Operation(summary = "자녀 정보 수정 (이미지 제외)")
+    @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Void> updateUserJr(
+            @LoginUserId Long userId,
+            @PathVariable Long id,
+            @RequestPart("metadata") @Valid UserJrUpdateRequestDto dto
     ) {
-        userJrService.setProfileImage(userJrId, imageId);
+        userJrService.updateUserJr(id, dto, userId);
         return ResponseEntity.ok().build();
     }
 
-    @Operation(summary = "자녀 정보 수정")
-    @PatchMapping("/{id}")
-    public ResponseEntity<Void> updateUserJr(
-            @PathVariable Long id,
-            @RequestBody UserJrUpdateRequestDto dto
-    ) {
-        userJrService.updateUserJr(id, dto);
-        return ResponseEntity.ok().build();
-    }
+
 }

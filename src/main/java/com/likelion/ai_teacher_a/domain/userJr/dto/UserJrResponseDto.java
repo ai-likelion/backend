@@ -12,20 +12,22 @@ public class UserJrResponseDto {
     private String name;
     private int schoolGrade;
     private Long parentId;
-    private Long profileImageId;
+    private String profileImageUrl;
 
     public static UserJrResponseDto from(UserJr userJr) {
-        Long profileImageId = null;
-        if (userJr.getProfileImage() != null && userJr.getProfileImage().getImageId() != null) {
-            profileImageId = userJr.getProfileImage().getImageId();
+        String profileImageUrl = null;
+        if (userJr.getImage() != null && userJr.getImage().getUrl() != null) {
+            profileImageUrl = userJr.getImage().getUrl();
         }
 
         return UserJrResponseDto.builder()
-                .id(userJr.getId())
-                .name(userJr.getName())
+                .id(userJr.getUserJrId())
+                .name(userJr.getNickname())
                 .schoolGrade(userJr.getSchoolGrade())
-                .parentId(userJr.getParent().getId())
-                .profileImageId(profileImageId)
+                .parentId(userJr.getUser().getId())
+                .profileImageUrl(profileImageUrl)
                 .build();
     }
+
+
 }

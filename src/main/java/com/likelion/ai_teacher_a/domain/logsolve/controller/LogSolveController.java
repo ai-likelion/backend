@@ -4,6 +4,8 @@ import com.likelion.ai_teacher_a.domain.logsolve.dto.TotalLogCountDto;
 import com.likelion.ai_teacher_a.domain.logsolve.service.LogSolveService;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
+import com.likelion.ai_teacher_a.domain.userJr.entity.UserJr;
+import com.likelion.ai_teacher_a.domain.userJr.repository.UserJrRepository;
 import com.likelion.ai_teacher_a.global.auth.resolver.annotation.LoginUserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -29,18 +31,28 @@ public class LogSolveController {
 
     private final LogSolveService logSolveService;
     private final UserRepository userRepository;
+    private final UserJrRepository userJrRepository;
 
     @Operation(summary = "이미지 문제 업로드 및 AI 해설 시작")
     @PostMapping(value = "/solve", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> solveImage(
-            @Parameter(description = "문제 이미지 파일") @RequestParam("mathProblemImage") MultipartFile image,
-            @Parameter(description = "자녀 학년 (1~6)") @RequestParam("grade") int grade,
+            @RequestParam("mathProblemImage") MultipartFile image,
+            @RequestParam("userJrId") Long userJrId, // 쿼리 파라미터
             @LoginUserId Long userId) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
 
-        return logSolveService.handleSolveImage(image, user, grade);
+        UserJr userJr = userJrRepository.findById(userJrId)
+                .orElseThrow(() -> new RuntimeException("자녀 정보를 찾을 수 없습니다."));
+
+        if (!userJr.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("해당 자녀에 접근할 권한이 없습니다.");
+        }
+
+        int grade = userJr.getSchoolGrade();
+
+        return logSolveService.handleSolveImage(image, user, userJr, grade);
     }
 
 
@@ -89,28 +101,37 @@ public class LogSolveController {
 
     @Operation(
             summary = "전체 문제해설 로그 수 조회",
-            description = "DB에 저장된 전체 LogSolve(문제해설 로그)의 총 개수를 반환합니다."
+            description = "지금까지 모든 사용자에 의해 풀이된 문제의 총 개수를 반환합니다."
     )
     @GetMapping("/logs-total")
-    public ResponseEntity<TotalLogCountDto> getTotalLogCount(@LoginUserId Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
-        TotalLogCountDto total = logSolveService.getTotalLogCount(user);
+    public ResponseEntity<TotalLogCountDto> getTotalLogCount() {
+        TotalLogCountDto total = logSolveService.getTotalLogCount();  // 파라미터 제거
         return ResponseEntity.ok(total);
     }
 
 
-    @Operation(summary = "모든 문제해설 요약 목록 조회 (imageUrl + title, 전체)")
-    @GetMapping("/all-logs")
+    @Operation(summary = "특정 자녀의 문제해설 요약 목록 조회 (imageUrl + title, 페이징)")
+    @GetMapping("/logs")
     public ResponseEntity<?> getSimpleLogs(
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "3") int size,
+            @RequestParam(name = "userJrId") Long userJrId,
             @LoginUserId Long userId
     ) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "image.uploadedAt")); // ✅ 핵심!
-        return ResponseEntity.ok(logSolveService.getAllSimpleLogs(pageable, user));
+
+        UserJr userJr = userJrRepository.findById(userJrId)
+                .orElseThrow(() -> new RuntimeException("자녀 정보를 찾을 수 없습니다."));
+
+
+        if (!userJr.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("해당 자녀에 접근할 권한이 없습니다.");
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "image.uploadedAt"));
+
+        return ResponseEntity.ok(logSolveService.getAllSimpleLogs(pageable, userJr));
     }
 
 
