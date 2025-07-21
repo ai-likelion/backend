@@ -13,9 +13,7 @@ public interface UserJrRepository extends JpaRepository<UserJr, Long> {
     @Query("SELECT uj FROM UserJr uj JOIN FETCH uj.user WHERE uj.user.id = :userId")
     List<UserJr> findByUserIdFetchJoin(@Param("userId") Long userId);
 
-
     boolean existsByUserIdAndNickname(Long userId, String nickname);
-
 
     void deleteAllByUser(User user);
 }
