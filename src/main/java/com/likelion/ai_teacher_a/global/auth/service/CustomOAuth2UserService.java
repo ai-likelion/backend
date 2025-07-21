@@ -16,9 +16,11 @@ import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
 	private final UserRepository userRepository;
@@ -38,20 +40,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
 		Map<String, Object> properties = (Map<String, Object>)attributes.get("properties");
 		String nickname = (String)properties.get("nickname");
-		String profileImageUrl = (String)properties.get("profile_image");
+		String email = (String) ((Map<String, Object>) attributes.get("kakao_account")).get("email");
 
 		Optional<User> userOptional = userRepository.findById(kakaoId);
 		User user;
-		if (userOptional.isPresent()) {
-			user = userOptional.get();
-			user.setName(nickname);
-			user.setProfileImageUrl(profileImageUrl);
-			userRepository.save(user);
-		} else {
+		if (userOptional.isEmpty()) {
 			user = User.builder()
 				.id(kakaoId)
 				.name(nickname)
-				.profileImageUrl(profileImageUrl)
+				.email(email)
 				.provider("kakao")
 				.build();
 			userRepository.save(user);

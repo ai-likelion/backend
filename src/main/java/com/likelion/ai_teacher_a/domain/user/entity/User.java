@@ -1,11 +1,19 @@
 package com.likelion.ai_teacher_a.domain.user.entity;
 
-import com.likelion.ai_teacher_a.domain.image.entity.Image;
-import jakarta.persistence.*;
-import lombok.*;
+import java.time.LocalDateTime;
+
 import org.springframework.data.annotation.CreatedDate;
 
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "users")
@@ -16,34 +24,26 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class User {
 
-    @Id
-    @Column(nullable = false)
-    private Long id;
+	@Id
+	@Column(nullable = false)
+	private Long id;
 
-    @CreatedDate
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
+	@CreatedDate
+	@Column(updatable = false)
+	private LocalDateTime createdAt;
 
-    private String email;
+	private String email;
 
-    @Column(nullable = false)
-    private String name;
-    private String password;
-    private String provider;
-    private String phone;
-    private String profileImageUrl;
-    private String refreshToken;
+	@Column(nullable = false)
+	private String name;
+	private String password;
+	private String provider;
+	private String phone;
+	private String refreshToken;
 
-    @OneToOne
-    private Image profileImage;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+	@PrePersist
+	protected void onCreate() {
+		this.createdAt = LocalDateTime.now();
+	}
 
 }
