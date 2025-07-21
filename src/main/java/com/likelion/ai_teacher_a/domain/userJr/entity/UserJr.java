@@ -20,7 +20,6 @@ public class UserJr {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long userJrId;
 
-
     private String nickname;
 
     @Min(1)
@@ -45,6 +44,5 @@ public class UserJr {
         this.user = user;
         this.image = image;
     }
-
 
 }

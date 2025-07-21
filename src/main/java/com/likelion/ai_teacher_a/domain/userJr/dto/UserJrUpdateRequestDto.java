@@ -15,6 +15,6 @@ public class UserJrUpdateRequestDto {
     private String nickname;
 
     @Min(value = 1, message = "학년은 최소 1이어야 합니다.")
-    @Max(value = 9, message = "학년은 최대 9까지 가능합니다.")
-    private Integer schoolGrade;  // 예: 중1 = 7
+    @Max(value = 6, message = "학년은 최대 6까지 가능합니다.")
+    private Integer schoolGrade;  // 예: 초5 = 5
 }
