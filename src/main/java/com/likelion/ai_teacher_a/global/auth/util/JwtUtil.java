@@ -14,7 +14,7 @@ import io.jsonwebtoken.security.Keys;
 @Component
 public class JwtUtil {
 	private final Key key;
-	private final long ACCESS_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60*24; // 1시간
+	private final long ACCESS_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60; // 1시간
 	private final long REFRESH_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60 * 24 * 7; // 7일
 
 	public JwtUtil() {
