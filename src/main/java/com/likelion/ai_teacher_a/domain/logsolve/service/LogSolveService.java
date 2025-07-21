@@ -254,7 +254,7 @@ public class LogSolveService {
 
     private Map<String, Object> buildPayload(String prompt, String imageUrl, int maxTokens) {
         return Map.of(
-                "model", "gpt-4.1-mini",
+                "model", "gpt-4o",
                 "messages", List.of(Map.of(
                         "role", "user",
                         "content", List.of(
