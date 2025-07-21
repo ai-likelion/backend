@@ -322,13 +322,16 @@ public class LogSolveService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getAllSimpleLogs(Pageable pageable, UserJr userJr) {
-        Page<LogSolve> page = logSolveRepository.findAllByUserJr(pageable, userJr);
+        Page<LogSolve> page = logSolveRepository.findPageByUserJrWithImage(pageable, userJr);
 
         List<LogSolveSimpleResponseDto> logs = page.getContent().stream().map(log -> {
-            String imageUrl = log.getImage().getUrl();
+            String imageUrl = "";
             String problemTitle = "";
 
             try {
+                if (log.getImage() != null) {
+                    imageUrl = log.getImage().getUrl();
+                }
                 JsonNode node = mapper.readTree(log.getResult());
                 problemTitle = node.path("problem_title").asText();
             } catch (Exception e) {

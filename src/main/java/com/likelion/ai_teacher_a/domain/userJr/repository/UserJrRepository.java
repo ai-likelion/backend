@@ -10,7 +10,12 @@ import java.util.List;
 
 public interface UserJrRepository extends JpaRepository<UserJr, Long> {
 
-    @Query("SELECT uj FROM UserJr uj JOIN FETCH uj.user WHERE uj.user.id = :userId ORDER BY uj.userJrId ASC")
+    @Query("""
+            SELECT uj FROM UserJr uj
+            LEFT JOIN FETCH uj.user
+            LEFT JOIN FETCH uj.image
+            WHERE uj.user.id = :userId
+            ORDER BY uj.userJrId ASC""")
     List<UserJr> findByUserIdFetchJoin(@Param("userId") Long userId);
 
     boolean existsByUserIdAndNickname(Long userId, String nickname);
