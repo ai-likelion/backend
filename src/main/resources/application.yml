@@ -31,14 +31,14 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/ai_math_teacher_a}
     username: ${DB_ID:postgres}
     password: ${DB_PW:1234}
-    driver-class-name: org.postgresql.Driver
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQL8Dialect
+    database-platform: ${DB_DIALECT:org.hibernate.dialect.PostgreSQL8Dialect}
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: ${DB_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
         generate_statistics: true
     show-sql: true
 cloud:
