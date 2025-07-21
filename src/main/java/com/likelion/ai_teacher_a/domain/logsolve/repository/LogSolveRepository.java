@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface LogSolveRepository extends JpaRepository<LogSolve, Long> {
@@ -33,6 +34,15 @@ public interface LogSolveRepository extends JpaRepository<LogSolve, Long> {
 
     @Query("SELECT l FROM LogSolve l LEFT JOIN FETCH l.image WHERE l.userJr = :userJr")
     List<LogSolve> findAllByUserJrWithImage(@Param("userJr") UserJr userJr);
+
+
+    @Query("""
+                SELECT l FROM LogSolve l
+                LEFT JOIN FETCH l.image
+                LEFT JOIN FETCH l.user
+                WHERE l.id = :logSolveId
+            """)
+    Optional<LogSolve> findByIdWithImageAndUser(@Param("logSolveId") Long logSolveId);
 
 
 }

@@ -161,7 +161,8 @@ public class LogSolveService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getLogDetail(Long logSolveId, User user) {
-        LogSolve log = getLogSolveById(logSolveId);
+        LogSolve log = logSolveRepository.findByIdWithImageAndUser(logSolveId)
+                .orElseThrow(() -> new RuntimeException("해당 로그가 존재하지 않습니다."));
         if (!log.getUser().getId().equals(user.getId())) {
             throw new RuntimeException("해당 사용자에게 접근 권한이 없습니다.");
         }
