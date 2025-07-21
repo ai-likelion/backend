@@ -18,11 +18,21 @@ public interface LogSolveRepository extends JpaRepository<LogSolve, Long> {
 
     long countByUser(User user);
 
+    @Query(
+            value = """
+                    SELECT l FROM LogSolve l
+                    LEFT JOIN FETCH l.image i
+                    LEFT JOIN FETCH l.userJr uj
+                    LEFT JOIN FETCH uj.image
+                    WHERE l.userJr = :userJr
+                    """,
+            countQuery = "SELECT COUNT(l) FROM LogSolve l WHERE l.userJr = :userJr"
+    )
+    Page<LogSolve> findPageByUserJrWithImage(Pageable pageable, @Param("userJr") UserJr userJr);
 
-    Page<LogSolve> findAllByUserJr(Pageable pageable, UserJr userJr);
 
-    @Query("SELECT l FROM LogSolve l WHERE l.userJr = :userJr")
-    List<LogSolve> findAllByUserJr(@Param("userJr") UserJr userJr);
+    @Query("SELECT l FROM LogSolve l LEFT JOIN FETCH l.image WHERE l.userJr = :userJr")
+    List<LogSolve> findAllByUserJrWithImage(@Param("userJr") UserJr userJr);
 
 
 }
