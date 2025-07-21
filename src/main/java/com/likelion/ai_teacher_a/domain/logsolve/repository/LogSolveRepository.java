@@ -21,8 +21,9 @@ public interface LogSolveRepository extends JpaRepository<LogSolve, Long> {
 
     Page<LogSolve> findAllByUserJr(Pageable pageable, UserJr userJr);
 
-    @Query("SELECT l FROM LogSolve l WHERE l.userJr = :userJr")
-    List<LogSolve> findAllByUserJr(@Param("userJr") UserJr userJr);
+    @Query("SELECT l FROM LogSolve l LEFT JOIN FETCH l.image WHERE l.userJr = :userJr")
+    List<LogSolve> findAllByUserJrWithImage(@Param("userJr") UserJr userJr);
+
 
 
 }

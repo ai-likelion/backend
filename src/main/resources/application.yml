@@ -34,10 +34,11 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQL8Dialect
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        generate_statistics: true
     show-sql: true
 cloud:
   aws:
