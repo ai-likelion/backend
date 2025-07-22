@@ -39,7 +39,6 @@ spring:
     properties:
       hibernate:
         dialect: ${DB_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
-        generate_statistics: true
     show-sql: true
 cloud:
   aws:
