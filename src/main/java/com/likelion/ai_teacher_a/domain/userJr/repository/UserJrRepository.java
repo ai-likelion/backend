@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface UserJrRepository extends JpaRepository<UserJr, Long> {
 
@@ -21,4 +22,13 @@ public interface UserJrRepository extends JpaRepository<UserJr, Long> {
     boolean existsByUserIdAndNickname(Long userId, String nickname);
 
     void deleteAllByUser(User user);
+
+    @Query("""
+                SELECT uj FROM UserJr uj
+                LEFT JOIN FETCH uj.user
+                LEFT JOIN FETCH uj.image
+                WHERE uj.userJrId = :userJrId
+            """)
+    Optional<UserJr> findByIdWithUserAndImage(@Param("userJrId") Long userJrId);
+
 }
