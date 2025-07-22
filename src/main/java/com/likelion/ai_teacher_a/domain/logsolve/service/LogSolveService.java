@@ -66,6 +66,7 @@ public class LogSolveService {
 
             String gptContent = sendGptRequest(payload);
             Map<String, Object> result = parseGptJson(gptContent);
+            validateMathJson(result);
             String resultJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
 
             logSolve.setResult(resultJson);
@@ -122,33 +123,70 @@ public class LogSolveService {
 
 
     public ResponseEntity<?> handleSolveImage(MultipartFile imageFile, User user, UserJr userJr, int grade) {
+        Image image = null;
+        LogSolve logSolve = null;
+
         try {
             if (grade < 1 || grade > 6) {
                 return ResponseEntity.badRequest().body(Map.of("message", "학년 정보가 올바르지 않습니다 (1~6학년만 허용)"));
             }
 
-            Long logSolveId = createLogAndReturnId(imageFile, user, userJr);
-            executeMath(logSolveId, grade);
+            ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC, user);
+            image = imageRepository.findById(imageDto.getImageId())
+                    .orElseThrow(() -> new RuntimeException("이미지 없음"));
 
-            return ResponseEntity.ok(Map.of("message", "AI 풀이 완료", "logSolveId", logSolveId));
+            // 2. log_solve에 임시로 저장
+            logSolve = logSolveRepository.save(
+                    LogSolve.builder()
+                            .image(image)
+                            .user(user)
+                            .userJr(userJr)
+                            .build()
+            );
+
+            Map<String, Object> result = executeMath(logSolve.getLogSolveId(), grade);
+
+            String resultJson = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(result);
+            logSolve.setResult(resultJson);
+            logSolveRepository.save(logSolve);
+
+            return ResponseEntity.ok(Map.of("message", "AI 풀이 완료", "logSolveId", logSolve.getLogSolveId()));
+
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("message", "AI 처리 실패", "error", e.getMessage()));
+            try {
+                if (logSolve != null) {
+                    logSolveRepository.delete(logSolve);
+                }
+                if (image != null && image.getUrl() != null) {
+                    s3Uploader.delete(image.getUrl());
+                    imageRepository.delete(image);
+                }
+            } catch (Exception cleanupEx) {
+                log.warn("정리 중 오류 발생", cleanupEx);
+            }
+
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "message", "AI 처리 실패",
+                    "error", e.getMessage()
+            ));
         }
     }
 
+    private void validateMathJson(Map<String, Object> json) {
+        List<String> requiredKeys = List.of(
+                "problem_title", "problem_text", "answer",
+                "core_concept", "parent_explanation", "explanation_steps"
+        );
 
-    public Long createLogAndReturnId(MultipartFile imageFile, User user, UserJr userJr) throws IOException {
-        ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC, user);
-        Image image = imageRepository.findById(imageDto.getImageId())
-                .orElseThrow(() -> new RuntimeException("이미지 없음"));
+        for (String key : requiredKeys) {
+            if (!json.containsKey(key) || json.get(key) == null || json.get(key).toString().isBlank()) {
+                throw new IllegalArgumentException("수학 문제가 아닌 이미지입니다. 누락된 필드: " + key);
+            }
+        }
 
-        return logSolveRepository.save(
-                LogSolve.builder()
-                        .image(image)
-                        .user(user)
-                        .userJr(userJr)
-                        .build()
-        ).getLogSolveId();
+        if (!(json.get("explanation_steps") instanceof List<?> steps) || steps.isEmpty()) {
+            throw new IllegalArgumentException("수학 문제가 아닌 이미지입니다. explanation_steps가 비어 있음");
+        }
     }
 
 
