@@ -82,9 +82,10 @@ public class UserJrService {
     }
 
     public UserJrResponseDto findById(Long userJrId, Long userId) {
-        UserJr userJr = userJrRepository.findById(userJrId)
+        UserJr userJr = userJrRepository.findByIdWithUserAndImage(userJrId)
                 .filter(jr -> jr.getUser().getId().equals(userId))
                 .orElseThrow(() -> new RuntimeException("자녀 정보를 찾을 수 없거나 권한이 없습니다."));
+
         return UserJrResponseDto.from(userJr);
     }
 
@@ -115,7 +116,6 @@ public class UserJrService {
 
         userJrRepository.delete(userJr);
     }
-
 
 
     private boolean isValidGrade(int grade) {
