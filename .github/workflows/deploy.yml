@@ -40,6 +40,37 @@ jobs:
           file: docker/Dockerfile
           push: true
           tags: thelightway/ai-teacher-back:latest
+          
+      - name: Render 배포 시작
+        id: start-time
+        run: echo "start_time=$(date -u +%s)" >> $GITHUB_OUTPUT
 
-      - name: Render 배포
+      - name: Render 배포 요청
         run: curl "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+        
+      - name: Render 배포 상태 확인
+        run: |
+          echo "🔍 Render 배포 상태 확인 중..."
+          API_URL="https://api.render.com/v1/services/${{ secrets.RENDER_SVC_ID }}"
+          TOKEN="${{ secrets.RENDER_TOKEN }}"
+          START_TIME=${{ steps.start-time.outputs.start_time }}
+
+          for i in {1..60}; do
+            RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_URL")
+            UPDATED_AT=$(echo "$RESPONSE" | jq -r '.updatedAt')
+
+            if [ "$UPDATED_AT" = "null" ]; then
+              echo "API 응답 오류, 다시 시도 중..."
+            else
+              UPDATED_TIME=$(date -u -d "$UPDATED_AT" +%s)
+
+              if [ "$UPDATED_TIME" -gt "$START_TIME" ]; then
+                echo "Render 배포 완료 (updatedAt: $UPDATED_AT)"
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+
+          echo "배포 확인 불가"
+          exit 1
