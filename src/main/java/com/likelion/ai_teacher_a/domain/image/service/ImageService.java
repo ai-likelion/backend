@@ -6,6 +6,7 @@ import com.likelion.ai_teacher_a.domain.image.entity.Image;
 import com.likelion.ai_teacher_a.domain.image.entity.ImageType;
 import com.likelion.ai_teacher_a.domain.image.repository.ImageRepository;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
+import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,10 +21,12 @@ public class ImageService {
     private final ImageRepository imageRepository;
 
     private final S3Uploader s3Uploader;
+    private final UserRepository userRepository;
 
 
     @Transactional
-    public ImageResponseDto uploadToS3AndSave(MultipartFile file, ImageType type, User user) throws IOException {
+    public ImageResponseDto uploadToS3AndSave(MultipartFile file, ImageType type, Long userId) throws IOException {
+        User user = userRepository.getReferenceById(userId);
 
         String url = s3Uploader.upload(file);
 
@@ -51,11 +54,12 @@ public class ImageService {
 
 
     @Transactional
-    public void deleteImage(Long imageId, User user) {
+    public void deleteImage(Long imageId, Long userId) {
+        User user = userRepository.getReferenceById(userId);
         Image image = imageRepository.findById(imageId)
                 .orElseThrow(() -> new RuntimeException("이미지를 찾을 수 없습니다."));
 
-        // S3에서 삭제
+
         if (image.getUrl() != null) {
             s3Uploader.delete(image.getUrl());
         }
@@ -65,7 +69,8 @@ public class ImageService {
 
 
     @Transactional(readOnly = true)
-    public String getImageUrl(Long imageId, User user) {
+    public String getImageUrl(Long imageId, Long userId) {
+        User user = userRepository.getReferenceById(userId);
         Image image = imageRepository.findByImageIdAndUser(imageId, user)
                 .orElseThrow(() -> new RuntimeException("이미지를 찾을 수 없습니다."));
         return image.getUrl();
@@ -73,7 +78,8 @@ public class ImageService {
 
 
     @Transactional
-    public ImageAndResponseDto uploadToS3AndSaveWithEntity(MultipartFile file, ImageType type, User user) throws IOException {
+    public ImageAndResponseDto uploadToS3AndSaveWithEntity(MultipartFile file, ImageType type, Long userId) throws IOException {
+        User user = userRepository.getReferenceById(userId);
         String url = s3Uploader.upload(file);
 
         Image image = Image.builder()

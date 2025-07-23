@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @Tag(name = "User-Jr", description = "사용자 자녀 관련 API")
@@ -57,14 +58,15 @@ public class UserJrController {
     }
 
 
-    @Operation(summary = "자녀 정보 수정 (이미지 제외)")
+    @Operation(summary = "자녀 정보 수정 (이미지 포함 가능)")
     @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> updateUserJr(
             @LoginUserId Long userId,
             @PathVariable Long id,
-            @RequestPart("metadata") @Valid UserJrUpdateRequestDto dto
-    ) {
-        userJrService.updateUserJr(id, dto, userId);
+            @RequestPart("metadata") @Valid UserJrUpdateRequestDto dto,
+            @RequestPart(value = "image", required = false) MultipartFile imageFile
+    ) throws IOException {
+        userJrService.updateUserJr(id, dto, userId, imageFile); // ⬅️ 이미지도 넘김
         return ResponseEntity.ok().build();
     }
 

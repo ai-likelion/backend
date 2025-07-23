@@ -14,8 +14,6 @@ import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrResponseDto;
 import com.likelion.ai_teacher_a.domain.userJr.dto.UserJrUpdateRequestDto;
 import com.likelion.ai_teacher_a.domain.userJr.entity.UserJr;
 import com.likelion.ai_teacher_a.domain.userJr.repository.UserJrRepository;
-import com.likelion.ai_teacher_a.global.exception.CustomException;
-import com.likelion.ai_teacher_a.global.exception.ErrorCode;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,8 +37,8 @@ public class UserJrService {
 
     @Transactional
     public UserJrResponseDto create(UserJrRequestDto dto, MultipartFile imageFile, Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        User user = userRepository.getReferenceById(userId);
+
 
         boolean exists = userJrRepository.existsByUserIdAndNickname(userId, dto.getNickname());
 
@@ -56,7 +54,7 @@ public class UserJrService {
         Image image = null;
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
-                image = imageService.uploadToS3AndSaveWithEntity(imageFile, ImageType.PROFILE, user).getImage();
+                image = imageService.uploadToS3AndSaveWithEntity(imageFile, ImageType.PROFILE, userId).getImage();
             } catch (IOException e) {
                 throw new RuntimeException("이미지 업로드 중 오류가 발생했습니다.", e);
             }
@@ -96,26 +94,27 @@ public class UserJrService {
                 .filter(jr -> jr.getUser().getId().equals(userId))
                 .orElseThrow(() -> new RuntimeException("삭제할 자녀 정보가 존재하지 않거나 권한이 없습니다."));
 
+
         List<LogSolve> logs = logSolveRepository.findAllByUserJrWithImage(userJr);
 
-        List<Image> imagesToDelete = logs.stream()
+
+        logs.stream()
                 .map(LogSolve::getImage)
-                .filter(image -> image != null && image.getUrl() != null)
-                .toList();
+                .filter(img -> img != null && img.getUrl() != null)
+                .forEach(img -> s3Uploader.delete(img.getUrl()));
 
-        imagesToDelete.parallelStream().forEach(image -> s3Uploader.delete(image.getUrl()));
 
-        imageRepository.deleteAll(imagesToDelete);
         logSolveRepository.deleteAll(logs);
+
 
         Image profileImage = userJr.getImage();
         if (profileImage != null && profileImage.getUrl() != null) {
             s3Uploader.delete(profileImage.getUrl());
-            imageRepository.delete(profileImage);
         }
 
         userJrRepository.delete(userJr);
     }
+
 
 
     private boolean isValidGrade(int grade) {
@@ -123,27 +122,39 @@ public class UserJrService {
     }
 
     @Transactional
-    public void updateUserJr(Long userJrId, UserJrUpdateRequestDto dto, Long userId) {
-        UserJr userJr = userJrRepository.findById(userJrId)
-                .filter(jr -> jr.getUser().getId().equals(userId))
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_JR_NOT_FOUND));
+    public void updateUserJr(Long userJrId, UserJrUpdateRequestDto dto, Long userId, MultipartFile imageFile) throws IOException {
+        UserJr userJr = userJrRepository.findByIdWithUser(userJrId)
+                .orElseThrow(() -> new RuntimeException("자녀 정보를 찾을 수 없습니다."));
 
-        if (dto.getNickname() != null && !dto.getNickname().equals(userJr.getNickname())) {
-            boolean exists = userJrRepository.existsByUserIdAndNickname(userId, dto.getNickname());
-            if (exists) {
-                throw new RuntimeException("이미 같은 이름의 자녀가 등록되어 있습니다.");
-            }
-            userJr.setNickname(dto.getNickname());
+        if (!userJr.getUser().getId().equals(userId)) {
+            throw new RuntimeException("해당 자녀에 접근할 권한이 없습니다.");
         }
 
-        if (dto.getSchoolGrade() != null) {
-            if (!isValidGrade(dto.getSchoolGrade())) {
-                throw new IllegalArgumentException("학년은 초등학교 1학년부터 6학년까지만 가능합니다.");
+        userJr.setNickname(dto.getNickname());
+        userJr.setSchoolGrade(dto.getSchoolGrade());
+
+        if (imageFile != null && !imageFile.isEmpty()) {
+            Image oldImage = userJr.getImage();
+            if (oldImage != null && oldImage.getUrl() != null) {
+                s3Uploader.delete(oldImage.getUrl());
+                imageRepository.delete(oldImage);
             }
-            userJr.setSchoolGrade(dto.getSchoolGrade());
+
+            String newUrl = s3Uploader.upload(imageFile);
+            Image newImage = Image.builder()
+                    .fileName(imageFile.getOriginalFilename())
+                    .fileSize((int) imageFile.getSize())
+                    .type(ImageType.PROFILE)
+                    .url(newUrl)
+                    .user(userJr.getUser())
+                    .build();
+
+            imageRepository.save(newImage);
+            userJr.setImage(newImage);
         }
 
-
+        userJrRepository.save(userJr);
     }
+
 
 }
