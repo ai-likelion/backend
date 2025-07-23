@@ -67,4 +67,15 @@ public class CookieUtils {
 		refreshTokenCookie.setMaxAge(60 * 60 * 24 * 7);
 		return refreshTokenCookie;
 	}
+
+	public static Cookie deleteRefeshTokenCookie(String refreshToken) {
+		Cookie refreshTokenCookie = new Cookie("refresh_token", refreshToken);
+		refreshTokenCookie.setHttpOnly(true);
+		refreshTokenCookie.setSecure(true);
+		refreshTokenCookie.setPath("/");
+		refreshTokenCookie.setDomain("ai-teacher-back-latest.onrender.com");
+		refreshTokenCookie.setAttribute("SameSite", "None");
+		refreshTokenCookie.setMaxAge(0);
+		return refreshTokenCookie;
+	}
 }
