@@ -7,10 +7,13 @@ import com.likelion.ai_teacher_a.domain.logsolve.repository.LogSolveRepository;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
 import com.likelion.ai_teacher_a.domain.userJr.repository.UserJrRepository;
+import com.likelion.ai_teacher_a.global.auth.util.CookieUtils;
 import com.likelion.ai_teacher_a.global.auth.util.JwtUtil;
+import com.likelion.ai_teacher_a.global.auth.util.dto.CookieResponse;
 import com.likelion.ai_teacher_a.global.exception.CustomException;
 import com.likelion.ai_teacher_a.global.exception.ErrorCode;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -29,19 +32,21 @@ public class UserService {
 	private final JwtUtil jwtUtil;
 
 	@Transactional
-	public void deleteUserById(Long id) {
+	public void deleteUserById(Long id, String refreshToken) {
 		User user = userRepository.findById(id)
 			.orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-		userRepository.deleteById(user.getId());
+		userRepository.deleteById(id);
+		deleteRefreshToken(id, refreshToken);
 	}
 
 	@Transactional
-	public void deleteRefreshToken(Long userId) {
+	public CookieResponse deleteRefreshToken(Long userId, String refreshToken) {
 		User user = userRepository.findById(userId)
 			.orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 		user.setRefreshToken(null);
-
+		Cookie cookie = CookieUtils.deleteRefeshTokenCookie(refreshToken);
+		return CookieResponse.builder().cookie(cookie).build();
 	}
 }
 
