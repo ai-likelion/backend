@@ -30,18 +30,16 @@ public class ImageController {
     @PostMapping("/upload")
     public ResponseEntity<ImageResponseDto> uploadToS3(@RequestParam("file") MultipartFile file,
                                                        @LoginUserId Long userId) throws IOException {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
-        ImageResponseDto dto = imageService.uploadToS3AndSave(file, ImageType.ETC, user);
+
+        ImageResponseDto dto = imageService.uploadToS3AndSave(file, ImageType.ETC, userId);
         return ResponseEntity.ok(dto);
     }
 
     @Operation(summary = "이미지 URL 조회", description = "이미지 ID를 이용해 S3에 저장된 이미지의 URL을 반환합니다.")
     @GetMapping("/{imageId}")
     public ResponseEntity<Map<String, Object>> getImageUrl(@PathVariable("imageId") Long imageId, @LoginUserId Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
-        String url = imageService.getImageUrl(imageId, user);
+
+        String url = imageService.getImageUrl(imageId, userId);
         return ResponseEntity.ok(Map.of("imageId", imageId, "url", url));
     }
 }
