@@ -1,6 +1,5 @@
 package com.likelion.ai_teacher_a.domain.logsolve.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.likelion.ai_teacher_a.domain.image.dto.ImageResponseDto;
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
@@ -8,12 +7,12 @@ import com.likelion.ai_teacher_a.domain.image.entity.ImageType;
 import com.likelion.ai_teacher_a.domain.image.repository.ImageRepository;
 import com.likelion.ai_teacher_a.domain.image.service.ImageService;
 import com.likelion.ai_teacher_a.domain.image.service.S3Uploader;
-import com.likelion.ai_teacher_a.domain.logsolve.dto.LogSolveResponseDto;
 import com.likelion.ai_teacher_a.domain.logsolve.dto.LogSolveSimpleResponseDto;
 import com.likelion.ai_teacher_a.domain.logsolve.dto.TotalLogCountDto;
 import com.likelion.ai_teacher_a.domain.logsolve.entity.LogSolve;
 import com.likelion.ai_teacher_a.domain.logsolve.repository.LogSolveRepository;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
+import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
 import com.likelion.ai_teacher_a.domain.userJr.entity.UserJr;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +34,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.*;
 
 
 @Slf4j
@@ -49,6 +49,7 @@ public class LogSolveService {
     private final ImageService imageService;
     private final ImageRepository imageRepository;
     private final S3Uploader s3Uploader;
+    private final UserRepository userRepository;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -69,7 +70,9 @@ public class LogSolveService {
             validateMathJson(result);
             String resultJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
 
+            String problemTitle = (String) result.get("problem_title");
             logSolve.setResult(resultJson);
+            logSolve.setProblemTitle(problemTitle);
             logSolveRepository.save(logSolve);
             log.info("✅ logSolveId={} GPT Vision 결과 저장 완료", logSolveId);
 
@@ -122,16 +125,18 @@ public class LogSolveService {
     }
 
 
-    public ResponseEntity<?> handleSolveImage(MultipartFile imageFile, User user, UserJr userJr, int grade) {
+    public ResponseEntity<?> handleSolveImage(MultipartFile imageFile, Long userId, UserJr userJr, int grade) {
         Image image = null;
         LogSolve logSolve = null;
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
         try {
             if (grade < 1 || grade > 6) {
                 return ResponseEntity.badRequest().body(Map.of("message", "학년 정보가 올바르지 않습니다 (1~6학년만 허용)"));
             }
 
-            ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC, user);
+            ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC, userId);
             image = imageRepository.findById(imageDto.getImageId())
                     .orElseThrow(() -> new RuntimeException("이미지 없음"));
 
@@ -198,10 +203,10 @@ public class LogSolveService {
 
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getLogDetail(Long logSolveId, User user) {
+    public Map<String, Object> getLogDetail(Long logSolveId, Long userId) {
         LogSolve log = logSolveRepository.findByIdWithImageAndUser(logSolveId)
                 .orElseThrow(() -> new RuntimeException("해당 로그가 존재하지 않습니다."));
-        if (!log.getUser().getId().equals(user.getId())) {
+        if (!log.getUser().getId().equals(userId)) {
             throw new RuntimeException("해당 사용자에게 접근 권한이 없습니다.");
         }
         if ("처리 중".equals(log.getResult())) {
@@ -219,9 +224,9 @@ public class LogSolveService {
     }
 
     @Transactional
-    public void deleteLogById(Long logSolveId, User user) {
+    public void deleteLogById(Long logSolveId, Long userId) {
         LogSolve log = getLogSolveById(logSolveId);
-        if (!log.getUser().getId().equals(user.getId())) {
+        if (!log.getUser().getId().equals(userId)) {
             throw new RuntimeException("해당 사용자에게 접근 권한이 없습니다.");
         }
         if (log.getImage() != null && log.getImage().getUrl() != null) {
@@ -232,10 +237,10 @@ public class LogSolveService {
     }
 
 
-    public ResponseEntity<?> executeFollowUp(Long logSolveId, String followUpQuestion, User user) {
+    public ResponseEntity<?> executeFollowUp(Long logSolveId, String followUpQuestion, Long userId) {
         try {
             LogSolve logSolve = getLogSolveById(logSolveId);
-            if (!logSolve.getUser().getId().equals(user.getId())) {
+            if (!logSolve.getUser().getId().equals(userId)) {
                 return ResponseEntity.status(403).body(Map.of("message", "권한이 없습니다."));
             }
             String prevJson = logSolve.getResult();
@@ -306,23 +311,39 @@ public class LogSolveService {
     }
 
 
-    private String sendGptRequest(Map<String, Object> payload) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.openai.com/v1/chat/completions"))
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload), StandardCharsets.UTF_8))
-                .timeout(Duration.ofSeconds(60))
-                .build();
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    private String sendGptRequest(Map<String, Object> payload) throws IOException {
+        Callable<String> task = () -> {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.openai.com/v1/chat/completions"))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload), StandardCharsets.UTF_8))
+                    .timeout(Duration.ofSeconds(30))
+                    .build();
 
-        if (response.statusCode() != 200) {
-            throw new RuntimeException("GPT Vision 응답 실패: " + response.body());
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("GPT Vision 응답 실패: " + response.body());
+            }
+
+            return mapper.readTree(response.body())
+                    .path("choices").get(0)
+                    .path("message").path("content")
+                    .asText();
+        };
+
+        try {
+            return executor.submit(task).get(35, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("GPT Vision 처리 시간 초과");
+        } catch (Exception e) {
+            throw new IOException("GPT Vision 처리 중 오류", e);
         }
-
-        return mapper.readTree(response.body()).path("choices").get(0).path("message").path("content").asText();
     }
+
 
     private Map<String, Object> parseGptJson(String raw) throws IOException {
         return mapper.readValue(cleanJson(raw), Map.class);
@@ -336,54 +357,21 @@ public class LogSolveService {
                 .trim();
     }
 
-    private LogSolveResponseDto convertLogToDto(LogSolve log) {
-        try {
-            Map<String, Object> parsedResult = mapper.readValue(cleanJson(log.getResult()), Map.class);
-            return new LogSolveResponseDto(
-                    log.getLogSolveId(),
-                    new ImageResponseDto(
-                            log.getImage().getImageId(),
-                            log.getImage().getFileName(),
-                            log.getImage().getFileSize(),
-                            log.getImage().getUrl(),
-                            log.getImage().getUploadedAt()
-                    ),
-                    parsedResult,
-                    log.getImage().getUploadedAt()
-            );
-        } catch (Exception e) {
-            return new LogSolveResponseDto(log.getLogSolveId(), null,
-                    Map.of("error", "JSON 파싱 실패", "raw", log.getResult()),
-                    log.getImage().getUploadedAt());
-        }
-    }
-
 
     @Transactional(readOnly = true)
     public Map<String, Object> getAllSimpleLogs(Pageable pageable, UserJr userJr) {
-        Page<LogSolve> page = logSolveRepository.findPageByUserJrWithImage(pageable, userJr);
 
-        List<LogSolveSimpleResponseDto> logs = page.getContent().stream().map(log -> {
-            String imageUrl = "";
-            String problemTitle = "";
+        Page<LogSolve> page = logSolveRepository.findAllByUserJr(userJr, pageable);
 
-            try {
-                if (log.getImage() != null) {
-                    imageUrl = log.getImage().getUrl();
-                }
-                JsonNode node = mapper.readTree(log.getResult());
-                problemTitle = node.path("problem_title").asText();
-            } catch (Exception e) {
-                // 로깅 또는 무시
-            }
 
-            return new LogSolveSimpleResponseDto(
-                    log.getLogSolveId(),
-                    imageUrl,
-                    problemTitle,
-                    log.getImage().getUploadedAt()
-            );
-        }).toList();
+        List<LogSolveSimpleResponseDto> logs = page.getContent().stream().map(log ->
+                new LogSolveSimpleResponseDto(
+                        log.getLogSolveId(),
+                        log.getImage() != null ? log.getImage().getUrl() : "",
+                        log.getProblemTitle() != null ? log.getProblemTitle() : "",
+                        log.getCreatedAt()
+                )
+        ).toList();
 
         return Map.of(
                 "logs", logs,

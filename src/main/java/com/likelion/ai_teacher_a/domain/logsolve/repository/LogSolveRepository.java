@@ -5,6 +5,7 @@ import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.userJr.entity.UserJr;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -43,6 +44,10 @@ public interface LogSolveRepository extends JpaRepository<LogSolve, Long> {
                 WHERE l.id = :logSolveId
             """)
     Optional<LogSolve> findByIdWithImageAndUser(@Param("logSolveId") Long logSolveId);
+
+
+    @EntityGraph(attributePaths = {"image"})
+    Page<LogSolve> findAllByUserJr(UserJr userJr, Pageable pageable);
 
 
 }

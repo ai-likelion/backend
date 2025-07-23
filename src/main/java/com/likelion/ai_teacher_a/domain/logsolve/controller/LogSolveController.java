@@ -2,7 +2,6 @@ package com.likelion.ai_teacher_a.domain.logsolve.controller;
 
 import com.likelion.ai_teacher_a.domain.logsolve.dto.TotalLogCountDto;
 import com.likelion.ai_teacher_a.domain.logsolve.service.LogSolveService;
-import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
 import com.likelion.ai_teacher_a.domain.userJr.entity.UserJr;
 import com.likelion.ai_teacher_a.domain.userJr.repository.UserJrRepository;
@@ -17,7 +16,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,6 +31,12 @@ public class LogSolveController {
     private final UserRepository userRepository;
     private final UserJrRepository userJrRepository;
 
+    private void validateUserJrOwner(Long userId, UserJr userJr) {
+        if (!userJr.getUser().getId().equals(userId)) {
+            throw new RuntimeException("해당 자녀에 접근할 권한이 없습니다.");
+        }
+    }
+
     @Operation(summary = "이미지 문제 업로드 및 AI 해설 시작")
     @PostMapping(value = "/solve", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> solveImage(
@@ -40,19 +44,14 @@ public class LogSolveController {
             @RequestParam("userJrId") Long userJrId, // 쿼리 파라미터
             @LoginUserId Long userId) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
-
-        UserJr userJr = userJrRepository.findById(userJrId)
+        UserJr userJr = userJrRepository.findByIdWithUser(userJrId)
                 .orElseThrow(() -> new RuntimeException("자녀 정보를 찾을 수 없습니다."));
-
-        if (!userJr.getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("해당 자녀에 접근할 권한이 없습니다.");
-        }
+        validateUserJrOwner(userId, userJr);
 
         int grade = userJr.getSchoolGrade();
 
-        return logSolveService.handleSolveImage(image, user, userJr, grade);
+        return logSolveService.handleSolveImage(image, userId, userJr, grade);
+
     }
 
 
@@ -60,10 +59,8 @@ public class LogSolveController {
     @GetMapping("/{logSolveId}")
     public ResponseEntity<?> getLogDetail(@Parameter(description = "해당 문제해설 로그 ID") @PathVariable("logSolveId") Long logSolveId,
                                           @LoginUserId Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
         try {
-            Map<String, Object> result = logSolveService.getLogDetail(logSolveId, user);
+            Map<String, Object> result = logSolveService.getLogDetail(logSolveId, userId);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -75,10 +72,8 @@ public class LogSolveController {
     @DeleteMapping("/{logSolveId}")
     public ResponseEntity<?> deleteLog(@Parameter(description = "삭제할 로그 ID") @PathVariable("logSolveId") Long logSolveId,
                                        @LoginUserId Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
         try {
-            logSolveService.deleteLogById(logSolveId, user);
+            logSolveService.deleteLogById(logSolveId, userId);
             return ResponseEntity.ok(Map.of("message", "삭제가 완료되었습니다."));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -93,9 +88,8 @@ public class LogSolveController {
             @Parameter(description = "사용자의 추가 질문") @RequestParam("question") String question,
             @LoginUserId Long userId
     ) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
-        return logSolveService.executeFollowUp(logSolveId, question, user);
+
+        return logSolveService.executeFollowUp(logSolveId, question, userId);
     }
 
 
@@ -118,18 +112,13 @@ public class LogSolveController {
             @RequestParam(name = "userJrId") Long userJrId,
             @LoginUserId Long userId
     ) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다"));
-
-        UserJr userJr = userJrRepository.findById(userJrId)
+        UserJr userJr = userJrRepository.findByIdWithUser(userJrId)
                 .orElseThrow(() -> new RuntimeException("자녀 정보를 찾을 수 없습니다."));
+        validateUserJrOwner(userId, userJr);
 
 
-        if (!userJr.getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("해당 자녀에 접근할 권한이 없습니다.");
-        }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "image.uploadedAt"));
 
         return ResponseEntity.ok(logSolveService.getAllSimpleLogs(pageable, userJr));
     }
