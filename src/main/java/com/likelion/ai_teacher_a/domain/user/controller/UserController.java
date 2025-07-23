@@ -2,6 +2,7 @@ package com.likelion.ai_teacher_a.domain.user.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,6 +27,12 @@ public class UserController {
 
 		userService.deleteUserById(loginId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/logout")
+	public ResponseEntity<?> logout(@LoginUserId Long userId) {
+		userService.deleteRefreshToken(userId);
+		return ResponseEntity.ok().build();
 	}
 
 }
