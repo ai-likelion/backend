@@ -35,5 +35,13 @@ public class UserService {
 
 		userRepository.deleteById(user.getId());
 	}
+
+	@Transactional
+	public void deleteRefreshToken(Long userId) {
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+		user.setRefreshToken(null);
+
+	}
 }
 
