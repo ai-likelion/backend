@@ -90,7 +90,8 @@ public class UserJrService {
 
     @Transactional
     public void delete(Long userJrId, Long userId) {
-        UserJr userJr = userJrRepository.findById(userJrId)
+
+        UserJr userJr = userJrRepository.findByIdWithUserAndImage(userJrId)
                 .filter(jr -> jr.getUser().getId().equals(userId))
                 .orElseThrow(() -> new RuntimeException("삭제할 자녀 정보가 존재하지 않거나 권한이 없습니다."));
 
@@ -98,7 +99,7 @@ public class UserJrService {
         List<LogSolve> logs = logSolveRepository.findAllByUserJrWithImage(userJr);
 
 
-        logs.stream()
+        logs.parallelStream()
                 .map(LogSolve::getImage)
                 .filter(img -> img != null && img.getUrl() != null)
                 .forEach(img -> s3Uploader.delete(img.getUrl()));
@@ -110,11 +111,12 @@ public class UserJrService {
         Image profileImage = userJr.getImage();
         if (profileImage != null && profileImage.getUrl() != null) {
             s3Uploader.delete(profileImage.getUrl());
+            imageRepository.delete(profileImage);
         }
+
 
         userJrRepository.delete(userJr);
     }
-
 
 
     private boolean isValidGrade(int grade) {

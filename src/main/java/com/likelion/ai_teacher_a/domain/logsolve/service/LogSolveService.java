@@ -152,6 +152,12 @@ public class LogSolveService {
             Map<String, Object> result = executeMath(logSolve.getLogSolveId(), grade);
 
             String resultJson = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(result);
+
+            if (resultJson == null || resultJson.isBlank()) {
+                throw new RuntimeException("AI 응답에 문제가 있어 저장하지 않습니다.");
+            }
+
+
             logSolve.setResult(resultJson);
             logSolveRepository.save(logSolve);
 
