@@ -26,7 +26,7 @@ public class ImageController {
     private final ImageService imageService;
     private final UserRepository userRepository;
 
-    @Operation(summary = "이미지를 S3에 업로드", description = "MultipartFile 형태로 이미지를 업로드하고 S3 URL과 정보를 반환합니다.")
+    @Operation(summary = "결제 승인", description = "MultipartFile 형태로 이미지를 업로드하고 S3 URL과 정보를 반환합니다.")
     @PostMapping("/upload")
     public ResponseEntity<ImageResponseDto> uploadToS3(@RequestParam("file") MultipartFile file,
                                                        @LoginUserId Long userId) throws IOException {

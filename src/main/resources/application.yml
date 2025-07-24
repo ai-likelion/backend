@@ -55,5 +55,9 @@ cors:
   allowed-origins: ${ALLOW_URL}
 frontend:
   login-success-uri: ${FRONT_LOGIN_SUCCESS}
-
-
+toss: # 토스페이먼츠 파트
+  payments:
+    secret-key: ${TOSSPAYMENTS_SECRET_KEY}
+    client-key: ${TOSSPAYMENTS_CLIENT_KEY}
+    success-url: "https://didim.onrender.com/payments/success"
+    fail-url: "https://didim.onrender.com/payments/fail"
