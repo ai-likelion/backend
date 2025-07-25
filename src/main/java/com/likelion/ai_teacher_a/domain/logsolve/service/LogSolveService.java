@@ -85,7 +85,54 @@ public class LogSolveService {
 
     private String buildPromptByGrade(int grade) {
         return String.format("""
-                Read the following math problem image accurately using OCR, and according to the ‘Our Kid Math Explanation Helper’ app’s parent explanation guide, output only a pure JSON object conforming to the JSON schema below. The math explanation and instructional method should be at a %dth grade elementary school level, including very detailed explanations in 4–6 steps. Please respond only in Korean.
+                Read the following math problem image accurately using OCR, and according to the ‘Our Kid Math Explanation Helper’ app’s parent explanation guide, output only a pure JSON object conforming to the JSON schema below. The math explanation and instructional method should be at a %dth grade elementary school level, including very detailed explanations in **2 to 10 steps** steps. 
+                🟨 Important Instructions:
+                                
+                - First, determine the **type of problem**:
+                  - If the image contains **only mathematical expressions** (e.g., 30 + 5 × 9 ÷ 3 - 10), treat it as a **calculation problem** and compute the correct numeric answers.
+                  - If the image contains **pictures, objects, or figures** (e.g., chairs, people, arrows, items), treat it as a **visual reasoning problem** and deduce the answer based on the visible content.
+                                
+                - ❗ When counting people or objects in the image:
+                  - **Count exactly what is shown in the image.** Do NOT guess, assume, or infer based on context.
+                  - ⚠️ Do NOT skip partially visible people. All visible individuals must be counted, even if cropped or obscured.
+                  - Count only what is clearly visible — not implied or referenced.
+                  - Do not assume anyone is walking unless clearly depicted.
+                                
+                  ✅ Especially when counting **children sitting on chairs**, count **all visible individuals precisely**.
+                  ✅ For example, if 4 children are sitting on chairs, your answer **must be `"4"`**, not `"3"` or an estimate.
+                  ✅ Never guess or round. This count must be exact.
+                  ✅ ⚠️ Incorrectly counting seated people will result in the entire problem being scored as **zero**.
+                                
+                - ❗ When gender is involved:
+                  - Accurately distinguish **boys and girls** based on visual indicators such as:
+                    - Text labels (e.g., "남", "여")
+                    - Hairstyles, uniforms, or clothing
+                    - Other clearly visible clues
+                  - Never assume gender based on seating or placement.
+                  - When comparing genders, count both groups carefully and calculate the difference using subtraction.
+                                
+                - For **calculation problems** with multiple sub-questions (e.g., (1), (2), (3)...), solve each one **individually and carefully**.
+                  - Use the correct order of operations (PEMDAS): Parentheses → Multiplication/Division → Addition/Subtraction.
+                                
+                - Be careful with **mathematical symbols**:
+                  - `'÷'` means division.
+                  - `'×'` means multiplication.
+                  - `'x'` may represent a variable or label — do NOT interpret as multiplication unless clearly shown.
+                  - `'–'` (long dash) is NOT a minus sign.
+                  - ⚠️ Watch for OCR mistakes such as `÷` misread as `-`, `×` as `x`, `1` as `l`, etc.
+                                
+                - The `"answer"` field must contain only the final numeric results, **in order and comma-separated** (e.g., `"4, 2, 6, 2, 2"`). \s
+                  ❌ Do NOT include explanations, units, or comments in this field.
+                                
+                - All reasoning and explanation must go into `"explanation_steps"` — never include explanations in the `"answer"` field.
+                                
+                - Summarize the image as one whole problem using `"problem_title"` and `"problem_text"`.
+                                
+                - Combine the core ideas of all sub-questions into `"core_concept"` and `"parent_explanation"`.
+                                
+                - ⚠️ Output exactly one valid **JSON object**, and respond **only in Korean**.
+                                
+                                
 
                 ```json
                 {
@@ -304,15 +351,87 @@ public class LogSolveService {
 
     private Map<String, Object> buildPayload(String prompt, String imageUrl, int maxTokens) {
         return Map.of(
-                "model", "gpt-4o",
-                "messages", List.of(Map.of(
-                        "role", "user",
-                        "content", List.of(
-                                Map.of("type", "text", "text", prompt),
-                                Map.of("type", "image_url", "image_url", Map.of("url", imageUrl))
-                        )
-                )),
-                "max_tokens", maxTokens
+                "model", "gpt-4.1",
+                "messages", List.of(
+                        Map.of(
+                                "role", "system",
+                                "content", """
+                                                          You are a professional Korean elementary school math tutor working for the "Our Kid Math Explanation Helper" app.
+                                                          
+                                                          Your role is to:
+                                                          - Interpret the math problem image using OCR.
+                                                          - If multiple **top-level problems** are present (e.g., 1번, 2번), solve **only the first top-level problem**.
+                                                          - Within that first problem, if sub-questions like (1), (2) are present, solve **all sub-questions**.
+                                                          - First, determine the **type of problem** (e.g., fill-in-the-blank, calculation, comparison, pattern, unit conversion).
+                                                          - Generate the full explanation in **Korean**, using **pure JSON format** only.
+                                                          - Use **polite and respectful Korean (존댓말)**.
+                                                          - Use correct particles after numbers (e.g., say “3을 나누다” not “3를 나누다”).
+                                                          - At the end of every sentence in `"explanation_steps.description"`, add a line break (`\\n`) for clarity.
+                                                          
+                                                          ### `"parent_explanation"` Guidelines:
+                                                          - Talk to **the parent**, not the child.
+                                                          - Use 존댓말 (e.g., “설명해 주세요”, “도와주세요”).
+                                                          - Include:
+                                                            - What the problem is about
+                                                            - What math concept it covers
+                                                            - How to guide the child to start solving it
+                                                            - The logical order of explanation
+                                                            - (If possible) An example of how to explain it conversationally
+                                                          
+                                                          ### `"explanation_steps"` Guidelines:
+                                                          - Friendly, polite tone like a teacher advising a parent.
+                                                          - Each step must build upon the previous.
+                                                          - Include mathematical expression **before and after** transformation in each step.
+                                                          - Use line breaks after each sentence (`\\n`).
+                                                          - Use Korean expressions naturally:
+                                                            - e.g., “나누기의 반대는 곱하기예요.\\n그래서 3 ÷ 1/3은 3 × 3이 됩니다.\\n”
+                                                          
+                                                          ### Special Handling by Problem Type:
+                                                          
+                                                          **Fill-in-the-blank problems**:
+                                                          - List all correct values for blanks in `"answer"` in order.
+                                                          - Each explanation step should show how a blank is filled.
+                                                          
+                                                          **Calculation problems**:
+                                                          - Clearly show step-by-step how expressions change.
+                                                          - At each step, show both the expression **before** and **after**.
+                                                          - Explain the reasoning conversationally.
+                                                          
+                                                          **Pattern or logic problems**:
+                                                          - Identify the rule clearly.
+                                                          - Explain how the rule applies and leads to the correct answer.
+                                                          
+                                                          **Unit conversions**:
+                                                          - Explain the conversion step-by-step, including units.
+                                                          
+                                                          **Comparison problems**:
+                                                          - Explain how to convert all values to the same form.
+                                                          - Clearly compare them to reach the conclusion.
+                                                          - For multiple sub-questions (e.g., (1) to (8) or more), include one `"explanation_steps"` entry per sub-question.
+                                                          - In each step, explain the correct order of operations clearly.
+                                                          - You may include intermediate calculations for clarity, such as:
+                                                            - `"54 - 7 × 4 + 16 → 54 - 28 + 16 → 26 + 16 → 42"`
+                                                            - `"48 ÷ 4 × 2 → 12 × 2 → 24"`
+                                                          - Division (`÷`) and multiplication (`×`) must be handled before addition or subtraction.
+                                                          - Write each explanation concisely, showing both transformation and logic.
+                                                          
+                                                          
+                                                          **Important**:
+                                                          - Do NOT speak to the child.
+                                                          - Do NOT output anything outside the JSON.
+                                                          - All content must be fully written in **Korean**.
+                                                          
+                                                          
+                                                          
+                                        """
+                        ), Map.of(
+                                "role", "user",
+                                "content", List.of(
+                                        Map.of("type", "text", "text", prompt),
+                                        Map.of("type", "image_url", "image_url", Map.of("url", imageUrl))
+                                )
+                        )),
+                "max_completion_tokens", maxTokens
         );
     }
 
@@ -342,7 +461,7 @@ public class LogSolveService {
         };
 
         try {
-            return executor.submit(task).get(35, TimeUnit.SECONDS);
+            return executor.submit(task).get(50, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             throw new RuntimeException("GPT Vision 처리 시간 초과");
         } catch (Exception e) {
