@@ -1,5 +1,29 @@
 package com.likelion.ai_teacher_a.domain.logsolve.service;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.likelion.ai_teacher_a.domain.image.dto.ImageResponseDto;
 import com.likelion.ai_teacher_a.domain.image.entity.Image;
@@ -14,372 +38,380 @@ import com.likelion.ai_teacher_a.domain.logsolve.repository.LogSolveRepository;
 import com.likelion.ai_teacher_a.domain.user.entity.User;
 import com.likelion.ai_teacher_a.domain.user.repository.UserRepository;
 import com.likelion.ai_teacher_a.domain.userJr.entity.UserJr;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.*;
-
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class LogSolveService {
 
-    @Value("${spring.ai.openai.api-key}")
-    private String apiKey;
+	private final LogSolveRepository logSolveRepository;
+	private final ImageService imageService;
+	private final ImageRepository imageRepository;
+	private final S3Uploader s3Uploader;
+	private final UserRepository userRepository;
+	private final ObjectMapper mapper = new ObjectMapper();
+	private final HttpClient httpClient = HttpClient.newBuilder()
+		.connectTimeout(Duration.ofSeconds(10))
+		.build();
+	private final ExecutorService executor = Executors.newCachedThreadPool();
+	@Value("${spring.ai.openai.api-key}")
+	private String apiKey;
 
-    private final LogSolveRepository logSolveRepository;
-    private final ImageService imageService;
-    private final ImageRepository imageRepository;
-    private final S3Uploader s3Uploader;
-    private final UserRepository userRepository;
+	public Map<String, Object> executeMath(Long logSolveId, int grade) {
+		try {
+			LogSolve logSolve = getLogSolveById(logSolveId);
+			String imageUrl = logSolve.getImage().getUrl();
 
-    private final ObjectMapper mapper = new ObjectMapper();
+			String prompt = buildPromptByGrade(grade);
+			Map<String, Object> payload = buildPayload(prompt, imageUrl, 8192);
 
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+			String gptContent = sendGptRequest(payload);
+			Map<String, Object> result = parseGptJson(gptContent);
+			validateMathJson(result);
+			String resultJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
 
-    public Map<String, Object> executeMath(Long logSolveId, int grade) {
-        try {
-            LogSolve logSolve = getLogSolveById(logSolveId);
-            String imageUrl = logSolve.getImage().getUrl();
+			String problemTitle = (String)result.get("problem_title");
+			logSolve.setResult(resultJson);
+			logSolve.setProblemTitle(problemTitle);
+			logSolveRepository.save(logSolve);
+			log.info("✅ logSolveId={} GPT Vision 결과 저장 완료", logSolveId);
 
-            String prompt = buildPromptByGrade(grade);
-            Map<String, Object> payload = buildPayload(prompt, imageUrl, 8192);
+			return result;
+		} catch (Exception e) {
+			log.error("❌ GPT Vision 처리 중 오류", e);
+			throw new RuntimeException("GPT Vision 처리 실패: " + e.getMessage());
+		}
+	}
 
-            String gptContent = sendGptRequest(payload);
-            Map<String, Object> result = parseGptJson(gptContent);
-            validateMathJson(result);
-            String resultJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
+	private String buildPromptByGrade(int grade) {
+		return String.format("""
+			Read the following math problem image accurately using OCR, and according to the ‘Our Kid Math Explanation Helper’ app’s parent explanation guide, output only a pure JSON object conforming to the JSON schema below. The math explanation and instructional method should be at a %dth grade elementary school level, including very detailed explanations in 2–6 steps. Please respond only in Korean.
+			
+			```json
+			{
+			  "problem_title": "Problem summary title (around 15 characters)",
+			  "problem_text": "Summary of the problem content",
+			  "answer": "Correct answer",
+			  "core_concept": "Core concept of the problem (e.g., 'divisors and multiples')",
+			  "parent_explanation": "Concise guide sentence that a parent can use to explain to their child",
+			  "explanation_steps": [
+			    {
+			      "title": "Step 1: Introduce the triangle angle rule",
+			      "description": "Explain that the sum of the internal angles of any triangle is always 180 degrees."
+			    },
+			    {
+			      "title": "Step 2: Identify the known angle",
+			      "description": "Point out that one of the angles is already given as 55 degrees."
+			    },
+			    {
+			      "title": "Step 3: Calculate the remaining angle sum",
+			      "description": "Subtract the known angle (55°) from 180° to find the sum of the other two angles."
+			    },
+			    {
+			      "title": "Step 4: Show the result of the subtraction",
+			      "description": "180° - 55° = 125°, which is the combined measure of angles ㉠ and ㉡."
+			    },
+			    {
+			      "title": "Step 5: Summarize the method",
+			      "description": "Remind the student that this approach works for any triangle when two angles are known."
+			    }
+			  ],
+			  "example_questions": [
+			    "\\"What should we check at this step?\\"",
+			    "\\"Why should we solve it this way?\\""
+			  ]
+			}
+			```""", grade);
+	}
 
-            String problemTitle = (String) result.get("problem_title");
-            logSolve.setResult(resultJson);
-            logSolve.setProblemTitle(problemTitle);
-            logSolveRepository.save(logSolve);
-            log.info("✅ logSolveId={} GPT Vision 결과 저장 완료", logSolveId);
+	public ResponseEntity<?> handleSolveImage(MultipartFile imageFile, Long userId, UserJr userJr, int grade) {
+		Image image = null;
+		LogSolve logSolve = null;
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-            return result;
-        } catch (Exception e) {
-            log.error("❌ GPT Vision 처리 중 오류", e);
-            throw new RuntimeException("GPT Vision 처리 실패: " + e.getMessage());
-        }
-    }
+		try {
+			if (grade < 1 || grade > 6) {
+				return ResponseEntity.badRequest().body(Map.of("message", "학년 정보가 올바르지 않습니다 (1~6학년만 허용)"));
+			}
 
-    private String buildPromptByGrade(int grade) {
-        return String.format("""
-                Read the following math problem image accurately using OCR, and according to the ‘Our Kid Math Explanation Helper’ app’s parent explanation guide, output only a pure JSON object conforming to the JSON schema below. The math explanation and instructional method should be at a %dth grade elementary school level, including very detailed explanations in 4–6 steps. Please respond only in Korean.
+			ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC, userId);
+			image = imageRepository.findById(imageDto.getImageId())
+				.orElseThrow(() -> new RuntimeException("이미지 없음"));
 
-                ```json
-                {
-                  "problem_title": "Problem summary title (around 15 characters)",
-                  "problem_text": "Summary of the problem content",
-                  "answer": "Correct answer",
-                  "core_concept": "Core concept of the problem (e.g., 'divisors and multiples')",
-                  "parent_explanation": "Concise guide sentence that a parent can use to explain to their child",
-                  "explanation_steps": [
-                    {
-                      "title": "Step 1: Introduce the triangle angle rule",
-                      "description": "Explain that the sum of the internal angles of any triangle is always 180 degrees."
-                    },
-                    {
-                      "title": "Step 2: Identify the known angle",
-                      "description": "Point out that one of the angles is already given as 55 degrees."
-                    },
-                    {
-                      "title": "Step 3: Calculate the remaining angle sum",
-                      "description": "Subtract the known angle (55°) from 180° to find the sum of the other two angles."
-                    },
-                    {
-                      "title": "Step 4: Show the result of the subtraction",
-                      "description": "180° - 55° = 125°, which is the combined measure of angles ㉠ and ㉡."
-                    },
-                    {
-                      "title": "Step 5: Summarize the method",
-                      "description": "Remind the student that this approach works for any triangle when two angles are known."
-                    }
-                  ],
-                  "example_questions": [
-                    "\\"What should we check at this step?\\"",
-                    "\\"Why should we solve it this way?\\""
-                  ]
-                }
-                ```""", grade);
-    }
+			// 2. log_solve에 임시로 저장
+			logSolve = logSolveRepository.save(
+				LogSolve.builder()
+					.image(image)
+					.user(user)
+					.userJr(userJr)
+					.build()
+			);
 
+			Map<String, Object> result = executeMath(logSolve.getLogSolveId(), grade);
 
-    public ResponseEntity<?> handleSolveImage(MultipartFile imageFile, Long userId, UserJr userJr, int grade) {
-        Image image = null;
-        LogSolve logSolve = null;
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+			String resultJson = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(result);
+			logSolve.setResult(resultJson);
+			logSolveRepository.save(logSolve);
 
-        try {
-            if (grade < 1 || grade > 6) {
-                return ResponseEntity.badRequest().body(Map.of("message", "학년 정보가 올바르지 않습니다 (1~6학년만 허용)"));
-            }
+			return ResponseEntity.ok(Map.of("message", "AI 풀이 완료", "logSolveId", logSolve.getLogSolveId()));
 
-            ImageResponseDto imageDto = imageService.uploadToS3AndSave(imageFile, ImageType.ETC, userId);
-            image = imageRepository.findById(imageDto.getImageId())
-                    .orElseThrow(() -> new RuntimeException("이미지 없음"));
+		} catch (Exception e) {
+			try {
+				if (logSolve != null) {
+					logSolveRepository.delete(logSolve);
+				}
+				if (image != null && image.getUrl() != null) {
+					s3Uploader.delete(image.getUrl());
+					imageRepository.delete(image);
+				}
+			} catch (Exception cleanupEx) {
+				log.warn("정리 중 오류 발생", cleanupEx);
+			}
 
-            // 2. log_solve에 임시로 저장
-            logSolve = logSolveRepository.save(
-                    LogSolve.builder()
-                            .image(image)
-                            .user(user)
-                            .userJr(userJr)
-                            .build()
-            );
+			return ResponseEntity.internalServerError().body(Map.of(
+				"message", "AI 처리 실패",
+				"error", e.getMessage()
+			));
+		}
+	}
 
-            Map<String, Object> result = executeMath(logSolve.getLogSolveId(), grade);
+	private void validateMathJson(Map<String, Object> json) {
+		List<String> requiredKeys = List.of(
+			"problem_title", "problem_text", "answer",
+			"core_concept", "parent_explanation", "explanation_steps"
+		);
 
-            String resultJson = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(result);
-            logSolve.setResult(resultJson);
-            logSolveRepository.save(logSolve);
+		for (String key : requiredKeys) {
+			if (!json.containsKey(key) || json.get(key) == null || json.get(key).toString().isBlank()) {
+				throw new IllegalArgumentException("수학 문제가 아닌 이미지입니다. 누락된 필드: " + key);
+			}
+		}
 
-            return ResponseEntity.ok(Map.of("message", "AI 풀이 완료", "logSolveId", logSolve.getLogSolveId()));
+		if (!(json.get("explanation_steps") instanceof List<?> steps) || steps.isEmpty()) {
+			throw new IllegalArgumentException("수학 문제가 아닌 이미지입니다. explanation_steps가 비어 있음");
+		}
+	}
 
-        } catch (Exception e) {
-            try {
-                if (logSolve != null) {
-                    logSolveRepository.delete(logSolve);
-                }
-                if (image != null && image.getUrl() != null) {
-                    s3Uploader.delete(image.getUrl());
-                    imageRepository.delete(image);
-                }
-            } catch (Exception cleanupEx) {
-                log.warn("정리 중 오류 발생", cleanupEx);
-            }
+	@Transactional(readOnly = true)
+	public TotalLogCountDto getTotalLogCount() {
+		long total = logSolveRepository.count() + 321L;
+		return new TotalLogCountDto(total);
+	}
 
-            return ResponseEntity.internalServerError().body(Map.of(
-                    "message", "AI 처리 실패",
-                    "error", e.getMessage()
-            ));
-        }
-    }
+	@Transactional(readOnly = true)
+	public Map<String, Object> getLogDetail(Long logSolveId, Long userId) {
+		LogSolve log = logSolveRepository.findByIdWithImageAndUser(logSolveId)
+			.orElseThrow(() -> new RuntimeException("해당 로그가 존재하지 않습니다."));
+		if (!log.getUser().getId().equals(userId)) {
+			throw new RuntimeException("해당 사용자에게 접근 권한이 없습니다.");
+		}
+		if ("처리 중".equals(log.getResult())) {
+			return Map.of("logSolveId", logSolveId, "status", "processing", "message", "AI 해설이 아직 완료되지 않았습니다.");
+		}
 
-    private void validateMathJson(Map<String, Object> json) {
-        List<String> requiredKeys = List.of(
-                "problem_title", "problem_text", "answer",
-                "core_concept", "parent_explanation", "explanation_steps"
-        );
+		try {
+			Map<String, Object> parsed = mapper.readValue(cleanJson(log.getResult()), Map.class);
+			parsed.put("logSolveId", logSolveId);
+			parsed.put("image_url", log.getImage().getUrl());
+			return parsed;
+		} catch (Exception e) {
+			throw new RuntimeException("상세 설명 JSON 파싱 실패: " + e.getMessage());
+		}
+	}
 
-        for (String key : requiredKeys) {
-            if (!json.containsKey(key) || json.get(key) == null || json.get(key).toString().isBlank()) {
-                throw new IllegalArgumentException("수학 문제가 아닌 이미지입니다. 누락된 필드: " + key);
-            }
-        }
+	@Transactional
+	public void deleteLogById(Long logSolveId, Long userId) {
+		LogSolve log = getLogSolveById(logSolveId);
+		if (!log.getUser().getId().equals(userId)) {
+			throw new RuntimeException("해당 사용자에게 접근 권한이 없습니다.");
+		}
+		if (log.getImage() != null && log.getImage().getUrl() != null) {
+			s3Uploader.delete(log.getImage().getUrl());
+		}
 
-        if (!(json.get("explanation_steps") instanceof List<?> steps) || steps.isEmpty()) {
-            throw new IllegalArgumentException("수학 문제가 아닌 이미지입니다. explanation_steps가 비어 있음");
-        }
-    }
+		logSolveRepository.delete(log);
+	}
 
+	public ResponseEntity<?> executeFollowUp(Long logSolveId, String followUpQuestion, Long userId) {
+		try {
+			LogSolve logSolve = getLogSolveById(logSolveId);
+			if (!logSolve.getUser().getId().equals(userId)) {
+				return ResponseEntity.status(403).body(Map.of("message", "권한이 없습니다."));
+			}
+			String prevJson = logSolve.getResult();
+			String imageUrl = logSolve.getImage().getUrl();
 
-    @Transactional(readOnly = true)
-    public TotalLogCountDto getTotalLogCount() {
-        long total = logSolveRepository.count() + 321L;
-        return new TotalLogCountDto(total);
-    }
+			String prompt = String.format("""
+				Read the following math problem image accurately using OCR, and create a complete JSON object as specified. \s
+				Provide the explanation in Korean, and strictly follow the predefined JSON format. \s
+				All output must be in JSON only. \s
+				
+				```            
+				""", followUpQuestion, prevJson);
+			Map<String, Object> payload = buildPayload(prompt, imageUrl, 2048);
 
+			String gptContent = sendGptRequest(payload);
+			Map<String, Object> additional = parseGptJson(gptContent);
+			Map<String, Object> prevResult = mapper.readValue(prevJson, Map.class);
 
-    @Transactional(readOnly = true)
-    public Map<String, Object> getLogDetail(Long logSolveId, Long userId) {
-        LogSolve log = logSolveRepository.findByIdWithImageAndUser(logSolveId)
-                .orElseThrow(() -> new RuntimeException("해당 로그가 존재하지 않습니다."));
-        if (!log.getUser().getId().equals(userId)) {
-            throw new RuntimeException("해당 사용자에게 접근 권한이 없습니다.");
-        }
-        if ("처리 중".equals(log.getResult())) {
-            return Map.of("logSolveId", logSolveId, "status", "processing", "message", "AI 해설이 아직 완료되지 않았습니다.");
-        }
+			prevResult.put("answers_to_additional_questions", additional.get("answers_to_additional_questions"));
+			logSolve.setResult(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(prevResult));
+			logSolveRepository.save(logSolve);
 
-        try {
-            Map<String, Object> parsed = mapper.readValue(cleanJson(log.getResult()), Map.class);
-            parsed.put("logSolveId", logSolveId);
-            parsed.put("image_url", log.getImage().getUrl());
-            return parsed;
-        } catch (Exception e) {
-            throw new RuntimeException("상세 설명 JSON 파싱 실패: " + e.getMessage());
-        }
-    }
+			return ResponseEntity.ok(Map.of("message", "AI 추가 질문 풀이 완료", "logSolveId", logSolveId));
+		} catch (Exception e) {
+			return ResponseEntity.internalServerError().body(Map.of("message", "추가 질문 처리 실패", "error", e.getMessage()));
+		}
+	}
 
-    @Transactional
-    public void deleteLogById(Long logSolveId, Long userId) {
-        LogSolve log = getLogSolveById(logSolveId);
-        if (!log.getUser().getId().equals(userId)) {
-            throw new RuntimeException("해당 사용자에게 접근 권한이 없습니다.");
-        }
-        if (log.getImage() != null && log.getImage().getUrl() != null) {
-            s3Uploader.delete(log.getImage().getUrl());
-        }
+	private LogSolve getLogSolveById(Long id) {
+		return logSolveRepository.findById(id)
+			.orElseThrow(() -> new IllegalArgumentException("해당 수학문제 해설이 없습니다."));
+	}
 
-        logSolveRepository.delete(log);
-    }
+	private Map<String, Object> buildPayload(String prompt, String imageUrl, int maxTokens) {
+		return Map.of(
+			"model", "gpt-4.1",
+			"messages", List.of(
+				Map.of(
+					"role", "system",
+					"content", """
+                        You are a professional Korean elementary school math tutor working for the "Our Kid Math Explanation Helper" app.
+                        
+                        Your role is to:
+                        - Interpret the math problem image using OCR.
+                        - If multiple **top-level problems** are present (e.g., 1번, 2번), solve **only the first top-level problem**.
+                        - Within that first problem, if sub-questions like (1), (2) are present, solve **all sub-questions**.
+                        - First, determine the **type of problem** (e.g., fill-in-the-blank, calculation, comparison, pattern, unit conversion).
+                        - Generate the full explanation in **Korean**, using **pure JSON format** only.
+                        - Use **polite and respectful Korean (존댓말)**.
+                        - Use correct particles after numbers (e.g., say “3을 나누다” not “3를 나누다”).
+                        - At the end of every sentence in `"explanation_steps.description"`, add a line break (`\\n`) for clarity.
+                        
+                        ### `"parent_explanation"` Guidelines:
+                        - Talk to **the parent**, not the child.
+                        - Use 존댓말 (e.g., “설명해 주세요”, “도와주세요”).
+                        - Include:
+                          - What the problem is about
+                          - What math concept it covers
+                          - How to guide the child to start solving it
+                          - The logical order of explanation
+                          - (If possible) An example of how to explain it conversationally
+                        
+                        ### `"explanation_steps"` Guidelines:
+                        - Friendly, polite tone like a teacher advising a parent.
+                        - Each step must build upon the previous.
+                        - Include mathematical expression **before and after** transformation in each step.
+                        - Use line breaks after each sentence (`\\n`).
+                        - Use Korean expressions naturally:
+                          - e.g., “나누기의 반대는 곱하기예요.\\n그래서 3 ÷ 1/3은 3 × 3이 됩니다.\\n”
+                        
+                        ### Special Handling by Problem Type:
+                        
+                        **Fill-in-the-blank problems**:
+                        - List all correct values for blanks in `"answer"` in order.
+                        - Each explanation step should show how a blank is filled.
+                        
+                        **Calculation problems**:
+                        - Clearly show step-by-step how expressions change.
+                        - At each step, show both the expression **before** and **after**.
+                        - Explain the reasoning conversationally.
+                        
+                        **Pattern or logic problems**:
+                        - Identify the rule clearly.
+                        - Explain how the rule applies and leads to the correct answer.
+                        
+                        **Unit conversions**:
+                        - Explain the conversion step-by-step, including units.
+                        
+                        **Comparison problems**:
+                        - Explain how to convert all values to the same form.
+                        - Clearly compare them to reach the conclusion.
+                        
+                        **Important**:
+                        - Do NOT speak to the child.
+                        - Do NOT output anything outside the JSON.
+                        - All content must be fully written in **Korean**.
+                        
+						"""
+				), Map.of(
+					"role", "user",
+					"content", List.of(
+						Map.of("type", "text", "text", prompt),
+						Map.of("type", "image_url", "image_url", Map.of("url", imageUrl))
+					)
+				)),
+			"max_completion_tokens", maxTokens
+		);
+	}
 
+	private String sendGptRequest(Map<String, Object> payload) throws IOException {
+		Callable<String> task = () -> {
+			HttpRequest request = HttpRequest.newBuilder()
+				.uri(URI.create("https://api.openai.com/v1/chat/completions"))
+				.header("Authorization", "Bearer " + apiKey)
+				.header("Content-Type", "application/json")
+				.POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload), StandardCharsets.UTF_8))
+				.timeout(Duration.ofSeconds(30))
+				.build();
 
-    public ResponseEntity<?> executeFollowUp(Long logSolveId, String followUpQuestion, Long userId) {
-        try {
-            LogSolve logSolve = getLogSolveById(logSolveId);
-            if (!logSolve.getUser().getId().equals(userId)) {
-                return ResponseEntity.status(403).body(Map.of("message", "권한이 없습니다."));
-            }
-            String prevJson = logSolve.getResult();
-            String imageUrl = logSolve.getImage().getUrl();
+			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            String prompt = String.format("""
-                    You are an AI math explanation assistant for elementary school students.
+			if (response.statusCode() != 200) {
+				throw new RuntimeException("GPT Vision 응답 실패: " + response.body());
+			}
 
-                    Below is a math problem image and the previous explanation (in JSON) that the AI provided.
+			return mapper.readTree(response.body())
+				.path("choices").get(0)
+				.path("message").path("content")
+				.asText();
+		};
 
-                    A parent has asked the following **follow-up question** because the child is still confused:
+		try {
+			return executor.submit(task).get(35, TimeUnit.SECONDS);
+		} catch (TimeoutException e) {
+			throw new RuntimeException("GPT Vision 처리 시간 초과");
+		} catch (Exception e) {
+			throw new IOException("GPT Vision 처리 중 오류", e);
+		}
+	}
 
-                    🟨🟨🟨 Please answer this question specifically and clearly! 🟨🟨🟨  
-                    ➡️ Follow-up question: **%s**
+	private Map<String, Object> parseGptJson(String raw) throws IOException {
+		return mapper.readValue(cleanJson(raw), Map.class);
+	}
 
-                    This question is an attempt by the student to understand the problem more deeply and should be addressed clearly.
+	private String cleanJson(String raw) {
+		return Optional.ofNullable(raw).orElse("")
+			.replaceAll("^```json\\s*", "")
+			.replaceAll("^```\\s*", "")
+			.replaceAll("\\s*```$", "")
+			.trim();
+	}
 
-                    ---
+	@Transactional(readOnly = true)
+	public Map<String, Object> getAllSimpleLogs(Pageable pageable, UserJr userJr) {
 
-                    Previous explanation JSON:
-                    %s
+		Page<LogSolve> page = logSolveRepository.findAllByUserJr(userJr, pageable);
 
-                    ---
+		List<LogSolveSimpleResponseDto> logs = page.getContent().stream().map(log ->
+			new LogSolveSimpleResponseDto(
+				log.getLogSolveId(),
+				log.getImage() != null ? log.getImage().getUrl() : "",
+				log.getProblemTitle() != null ? log.getProblemTitle() : "",
+				log.getCreatedAt()
+			)
+		).toList();
 
-                    📌 Please respond only in Korean and return only a JSON object in the following format:
-                    ```json
-                    {
-                      "answers_to_additional_questions": [
-                        "Write accurate and detailed answers to follow-up questions.",
-                        "Provide an explanation that matches the intent of the question, without using any illustrations"
-                      ]
-                    }
-                    ```            
-                    """, followUpQuestion, prevJson);
-            Map<String, Object> payload = buildPayload(prompt, imageUrl, 2048);
-
-            String gptContent = sendGptRequest(payload);
-            Map<String, Object> additional = parseGptJson(gptContent);
-            Map<String, Object> prevResult = mapper.readValue(prevJson, Map.class);
-
-            prevResult.put("answers_to_additional_questions", additional.get("answers_to_additional_questions"));
-            logSolve.setResult(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(prevResult));
-            logSolveRepository.save(logSolve);
-
-            return ResponseEntity.ok(Map.of("message", "AI 추가 질문 풀이 완료", "logSolveId", logSolveId));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("message", "추가 질문 처리 실패", "error", e.getMessage()));
-        }
-    }
-
-    private LogSolve getLogSolveById(Long id) {
-        return logSolveRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("해당 수학문제 해설이 없습니다."));
-    }
-
-    private Map<String, Object> buildPayload(String prompt, String imageUrl, int maxTokens) {
-        return Map.of(
-                "model", "gpt-4o",
-                "messages", List.of(Map.of(
-                        "role", "user",
-                        "content", List.of(
-                                Map.of("type", "text", "text", prompt),
-                                Map.of("type", "image_url", "image_url", Map.of("url", imageUrl))
-                        )
-                )),
-                "max_tokens", maxTokens
-        );
-    }
-
-
-    private final ExecutorService executor = Executors.newCachedThreadPool();
-
-    private String sendGptRequest(Map<String, Object> payload) throws IOException {
-        Callable<String> task = () -> {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.openai.com/v1/chat/completions"))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload), StandardCharsets.UTF_8))
-                    .timeout(Duration.ofSeconds(30))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() != 200) {
-                throw new RuntimeException("GPT Vision 응답 실패: " + response.body());
-            }
-
-            return mapper.readTree(response.body())
-                    .path("choices").get(0)
-                    .path("message").path("content")
-                    .asText();
-        };
-
-        try {
-            return executor.submit(task).get(35, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            throw new RuntimeException("GPT Vision 처리 시간 초과");
-        } catch (Exception e) {
-            throw new IOException("GPT Vision 처리 중 오류", e);
-        }
-    }
-
-
-    private Map<String, Object> parseGptJson(String raw) throws IOException {
-        return mapper.readValue(cleanJson(raw), Map.class);
-    }
-
-    private String cleanJson(String raw) {
-        return Optional.ofNullable(raw).orElse("")
-                .replaceAll("^```json\\s*", "")
-                .replaceAll("^```\\s*", "")
-                .replaceAll("\\s*```$", "")
-                .trim();
-    }
-
-
-    @Transactional(readOnly = true)
-    public Map<String, Object> getAllSimpleLogs(Pageable pageable, UserJr userJr) {
-
-        Page<LogSolve> page = logSolveRepository.findAllByUserJr(userJr, pageable);
-
-
-        List<LogSolveSimpleResponseDto> logs = page.getContent().stream().map(log ->
-                new LogSolveSimpleResponseDto(
-                        log.getLogSolveId(),
-                        log.getImage() != null ? log.getImage().getUrl() : "",
-                        log.getProblemTitle() != null ? log.getProblemTitle() : "",
-                        log.getCreatedAt()
-                )
-        ).toList();
-
-        return Map.of(
-                "logs", logs,
-                "totalElements", page.getTotalElements(),
-                "totalPages", page.getTotalPages(),
-                "currentPage", page.getNumber()
-        );
-    }
-
+		return Map.of(
+			"logs", logs,
+			"totalElements", page.getTotalElements(),
+			"totalPages", page.getTotalPages(),
+			"currentPage", page.getNumber()
+		);
+	}
 
 }
