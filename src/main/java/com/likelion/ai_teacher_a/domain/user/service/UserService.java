@@ -36,8 +36,8 @@ public class UserService {
 		User user = userRepository.findById(id)
 			.orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-		userRepository.deleteById(id);
 		deleteRefreshToken(id, refreshToken);
+		userRepository.deleteById(id);
 	}
 
 	@Transactional
