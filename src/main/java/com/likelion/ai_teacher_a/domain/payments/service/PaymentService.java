@@ -8,6 +8,7 @@ import com.likelion.ai_teacher_a.domain.payments.entity.PaymentStatus;
 import com.likelion.ai_teacher_a.domain.payments.repository.OrderRepository;
 import com.likelion.ai_teacher_a.domain.payments.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -150,6 +152,19 @@ public class PaymentService {
             }
         } else {
             throw new IllegalArgumentException("환불 조건이 맞지 않습니다.");
+        }
+    }
+
+    public void confirmPayment(String orderId) {
+        log.info("결제 확인 시작: orderId={}", orderId);
+
+        try {
+            // 결제 처리 로직
+            log.debug("결제 처리 중간 단계 정보 로그");
+
+        } catch (Exception e) {
+            log.error("결제 확인 중 예외 발생: {}", e.getMessage(), e);
+            throw e;
         }
     }
 }

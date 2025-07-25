@@ -58,5 +58,5 @@ toss: # 토스페이먼츠 파트
   payments:
     secret-key: ${TOSSPAYMENTS_SECRET_KEY}
     client-key: ${TOSSPAYMENTS_CLIENT_KEY}
-    success-url: ${TOSSPAYMENTS_SUCCESS_URL}
-    fail-url: ${TOSSPAYMENTS_FAIL_URL}
+    success-url: "https://didim.onrender.com/payments/success"
+    fail-url: "https://didim.onrender.com/payments/fail"
