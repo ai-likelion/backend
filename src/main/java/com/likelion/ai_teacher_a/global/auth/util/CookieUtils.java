@@ -62,7 +62,7 @@ public class CookieUtils {
 		refreshTokenCookie.setHttpOnly(true);
 		refreshTokenCookie.setSecure(true);
 		refreshTokenCookie.setPath("/");
-		refreshTokenCookie.setDomain("ai-teacher-back-latest.onrender.com");
+		refreshTokenCookie.setDomain("backend.didim.site");
 		refreshTokenCookie.setAttribute("SameSite", "None");
 		refreshTokenCookie.setMaxAge(60 * 60 * 24 * 7);
 		return refreshTokenCookie;
@@ -73,7 +73,7 @@ public class CookieUtils {
 		refreshTokenCookie.setHttpOnly(true);
 		refreshTokenCookie.setSecure(true);
 		refreshTokenCookie.setPath("/");
-		refreshTokenCookie.setDomain("ai-teacher-back-latest.onrender.com");
+		refreshTokenCookie.setDomain("backend.didim.site");
 		refreshTokenCookie.setAttribute("SameSite", "None");
 		refreshTokenCookie.setMaxAge(0);
 		return refreshTokenCookie;
