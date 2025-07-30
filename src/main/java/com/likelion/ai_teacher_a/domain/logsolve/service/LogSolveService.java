@@ -54,7 +54,7 @@ public class LogSolveService {
     private final ObjectMapper mapper = new ObjectMapper();
 
     private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
+            .connectTimeout(Duration.ofSeconds(60))
             .build();
 
     public Map<String, Object> executeMath(Long logSolveId, int grade) {
