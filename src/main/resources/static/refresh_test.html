@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refresh Token Test</title>
+</head>
+<body>
+    <h1>Test Token Refresh</h1>
+    <p>
+        버튼을 클릭하면, 쿠키에 저장된 리프레시 토큰을 사용해 새로운 액세스 토큰을 요청합니다.
+    </p>
+    <button id="refreshTokenBtn">Refresh Tokens</button>
+
+    <hr>
+
+    <h2>New Access Token:</h2>
+    <pre id="newAccessToken"></pre>
+
+    <h2>New Access Token Expires In:</h2>
+    <pre id="newExpiresIn"></pre>
+
+    <h2>Status:</h2>
+    <pre id="status"></pre>
+
+    <script>
+        document.getElementById('refreshTokenBtn').addEventListener('click', () => {
+            document.getElementById('status').textContent = 'Requesting...';
+            
+            fetch('/api/auth/refresh', {
+                method: 'POST',
+                credentials: 'include' 
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error('Server responded with ' + response.status + ': ' + text);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('newAccessToken').textContent = data.accessToken;
+                document.getElementById('newExpiresIn').textContent = new Date(data.expireDateTime).toLocaleString();
+                document.getElementById('status').textContent = '요청 성공';
+            })
+            .catch(error => {
+                document.getElementById('newAccessToken').textContent = '';
+                document.getElementById('newExpiresIn').textContent = '';
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 성공 페이지</title>
+</head>
+<body>
+<h1>로그인 성공</h1>
+<p>Access Token:</p>
+<pre id="accessToken"></pre>
+<p>Refresh Token은 쿠키에 저장되었습니다.</p>
+<br>
+<h2><a href="/mypage.html">마이페이지로 이동</a></h2>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('accessToken');
+
+    if (token) {
+        localStorage.setItem('accessToken', token); // TEST용으로 로컬에 토큰 저장
+        document.getElementById('accessToken').textContent = token;
+        console.log('Stored Access Token in localStorage:', token);
+        window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+        );
+    }
+</script>
+</body>
+</html>

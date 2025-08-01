@@ -1,0 +1,61 @@
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: native
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:nnnnnn}
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: ${OAUTH_CLIENT_ID}
+            client-secret: ${OAUTH_CLIENT_SECRET}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            scope:
+              - profile_nickname
+              - profile_image
+              - account_email
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+  application:
+    name: ai-teacher-a
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ai_math_teacher_a}
+    username: ${DB_ID:postgres}
+    password: ${DB_PW:1234}
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
+  jpa:
+    database-platform: ${DB_DIALECT:org.hibernate.dialect.PostgreSQL8Dialect}
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: ${DB_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+    show-sql: true
+cloud:
+  aws:
+    region:
+      static: ${S3_REGION}
+    credentials:
+      access-key: ${S3_ACCESS_KEY}
+      secret-key: ${S3_SECRET_KEY}
+    s3:
+      bucket: ${S3_BUCKET}
+      endpoint: ${S3_ENDPOINT}
+      public:
+        url: ${S3_PUBLIC_URL}
+
+cors:
+  allowed-origins: ${ALLOW_URL}
+frontend:
+  login-success-uri: ${FRONT_LOGIN_SUCCESS}
+
+
